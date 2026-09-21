@@ -8,3 +8,4 @@ bun.lock
 
 *.local
 .DS_Store
+screenshots/

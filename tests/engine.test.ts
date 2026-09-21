@@ -150,7 +150,7 @@ describe("step", () => {
 
   test("does not mutate the state it is given", () => {
     const before = bare();
-    const snapshot = structuredClone(before);  // Ruleset is serialisable by design
+    const snapshot = structuredClone(before); // Ruleset is serialisable by design
     step(before, "north");
     assert.deepEqual(before, snapshot);
   });

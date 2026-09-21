@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/* Manual theme control; the `dark:` default follows prefers-color-scheme,
+   which a toggle has to override (ADR-0011). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Semantic tokens indirect through --c-*, which the theme swaps. */
+@theme {
+  --color-*: initial;
+
+  --color-bg: var(--c-bg);
+  --color-panel: var(--c-panel);
+  --color-line: var(--c-line);
+  --color-text: var(--c-text);
+  --color-muted: var(--c-muted);
+  --color-cell: var(--c-cell);
+  --color-snake-head: var(--c-snake-head);
+  --color-snake-tail: var(--c-snake-tail);
+  --color-food: var(--c-food);
+  --color-accent: var(--c-accent);
+
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+}
+
+:root {
+  /* A soft grey rather than near-white, so the panels read as panels and the
+     whole page is easier to sit in front of. */
+  --c-bg: oklch(0.945 0.005 258);
+  --c-panel: oklch(0.988 0.0025 258);
+  --c-line: oklch(0.865 0.0095 258);
+  --c-cell: oklch(0.925 0.006 258);
+  --c-text: oklch(0.2077 0.0398 265.75);
+  --c-muted: oklch(0.51 0.04 257.42);
+  --c-snake-head: oklch(0.6002 0.1038 184.7);
+  --c-snake-tail: oklch(0.3861 0.059 188.42);
+  --c-food: oklch(0.5858 0.222 17.58);
+  --c-accent: oklch(0.5413 0.2466 293.01);
+}
+
+.dark {
+  --c-bg: oklch(0.1808 0.0095 255.64);
+  --c-panel: oklch(0.2207 0.0132 258.37);
+  --c-line: oklch(0.2871 0.0186 258.37);
+  --c-cell: oklch(0.252 0.015 258);
+  --c-text: oklch(0.9288 0.0126 255.51);
+  --c-muted: oklch(0.7107 0.0351 256.79);
+  --c-snake-head: oklch(0.7845 0.1325 181.91);
+  --c-snake-tail: oklch(0.5198 0.0936 223.13);
+  --c-food: oklch(0.7192 0.169 13.43);
+  --c-accent: oklch(0.709 0.1592 293.54);
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--c-bg);
+  color: var(--c-text);
+}

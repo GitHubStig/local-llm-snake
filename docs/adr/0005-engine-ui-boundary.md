@@ -29,6 +29,23 @@ Two constraints that come with `node:test`:
   Vitest-style file present, Node reported it as a *passing* test while no
   assertion ever ran.
 
+## Amendment, 2026-09-21: headless screenshots
+
+"Engine tests only" still holds for *tests*. But this session had no browser
+tooling, so UI work was verified by compiling and grepping the built CSS —
+which proved the rules emitted and said nothing about whether the page looked
+right. It missed a real bug: `aspect-ratio` with a definite height let a
+`max-width` cap stretch the board vertically.
+
+`playwright` is therefore a devDependency, driving `scripts/shoot.ts` — not a
+test, a screenshot tool. It also reports the board's measured geometry, which
+turns "does it look square" into a number.
+
+Deliberately the `playwright` library rather than `@playwright/test`: a second
+test runner would risk exactly the shared-discovery-glob trap below. If a UI
+smoke test is ever wanted, it goes in a `node:test` file that drives Playwright
+as a library.
+
 ## Alternatives considered
 
 **Vitest.** Works under all three runtimes and does not need the Vite config
