@@ -130,8 +130,12 @@ be opened and read.
   example returned a valid, in-enum `south` where the stated coordinate system
   made `north` correct. A game-level validity check is required independently
   of schema validation.
-- **Prefix caching is worth protecting**: 50-80x across models, measured as a
-  strict prefix match from token 0. Prepending four tokens at the head
-  collapsed it entirely.
+- **Prefix caching is worth protecting, but does not currently apply.** The
+  50-80x figures were measured on multi-thousand-token prefixes. Caching turns
+  on somewhere between 314 and 614 tokens, and this project's request is ~367,
+  so it gets no reuse — `cached 0/367` on every tick of a real game. The rule
+  (nothing varying at the head) still costs nothing and starts paying the
+  moment the prompt grows past ~512 tokens, which is a reason not to
+  over-compress the system prompt.
 - The switches turned an argument into a measurement once already. That is the
   argument for keeping them.

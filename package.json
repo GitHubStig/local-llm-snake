@@ -13,7 +13,8 @@
     "fmt:check": "prettier --check .",
     "lint": "oxlint",
     "typecheck": "vue-tsc --noEmit --skipLibCheck",
-    "shoot": "node scripts/shoot.ts"
+    "shoot": "node scripts/shoot.ts",
+    "ai-smoke": "node scripts/ai-smoke.ts"
   },
   "dependencies": {
     "@vueuse/core": "15.0.0",

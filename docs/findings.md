@@ -129,6 +129,30 @@ via `prompt_eval_cached_count`.
 `fm serve` reports `cached_tokens: 0` on every response — no evidence of
 prompt caching.
 
+### Caching does not engage below about 512 tokens
+
+Measured 2026-09-21 against `gemma4:e2b`, fixed system prompt, varying user
+message:
+
+| prompt tokens | cached | |
+|---|---|---|
+| 134 | 0 | 0% |
+| 314 | 0 | 0% |
+| 614 | 607 | **99%** |
+| 1314 | 1307 | 99% |
+| 2714 | 2707 | 100% |
+
+The turn-on sits between 314 and 614 tokens, consistent with a 512-token batch
+boundary. The earlier 50-80x figures were all measured with multi-thousand
+token prefixes and do **not** generalise to short prompts.
+
+**Consequence for this project:** the current system prompt is ~340 tokens and
+the whole request ~367, so it falls just below the threshold and gets no reuse
+at all — confirmed live, `cached 0/367` on every tick of a real game. Crossing
+512 tokens would return roughly 150ms per tick, which against a ~430ms call is
+a third of the budget. That is a reason not to over-compress the system
+prompt, not a reason to pad it with filler.
+
 ## 5. Model-specific defects
 
 **`qwen3-vl:4b` — `message.content` is always empty.** With `think: false` plus
@@ -193,7 +217,31 @@ being loopback.
 matched snake-tick call (min 303, max 935). `fm respond` as a subprocess costs
 685-1423 ms, of which ~500-700 ms is process startup.
 
-## 8. Runtime matrix
+## 8. First live game, 2026-09-21
+
+`gemma4:e2b`, assistance level 0, coordinates, `why` on. Eight ticks from seed
+61005, head starting at (6,6) with food at (4,7):
+
+```
+# 0 head (6,6) food (4,7) -> north 4604ms   why: "Moving north brings the head closer to the food."
+# 1 head (6,5) food (4,7) -> north  399ms
+...
+# 6 head (6,0) food (4,7) -> north  432ms
+outcome: crashed  food 0  steps 7
+```
+
+The food was one row **south** and two columns west. The model drove north
+into the wall for seven consecutive moves, and its stated reason was a plain
+falsehood about the geometry. The prompt states the axis convention
+explicitly; it did not help.
+
+This is the directional attractor from §3 reproduced in a live loop — here
+fixed on `north` rather than `east`, which suggests the attractor is not a
+fixed token but something about how the position is presented. Latency is
+healthy (~430ms warm, 4.6s cold including model load), so the loop itself
+performs; what fails is comprehension.
+
+## 9. Runtime matrix
 
 One `package.json`, no `deno.json`, no `bunfig.toml`. 20 of 21 tasks green.
 

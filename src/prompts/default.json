@@ -1,0 +1,14 @@
+{
+  "system": "You control the snake in a game of Snake.\n\nCOORDINATES\n  A position is written (col,row).\n  col increases to the EAST. row increases to the SOUTH.\n  So: north DECREASES row, south INCREASES row, west DECREASES col, east INCREASES col.\n  The grid is zero-indexed and (0,0) is the north-west corner.\n\nRULES\n  Each turn the snake moves exactly one cell in the direction you choose.\n  Moving outside the grid kills the snake.\n  Moving onto a cell occupied by your own body kills the snake. The one\n  exception is the final tail cell, which moves away on the same turn, unless\n  you are eating that turn and the snake grows instead.\n  Moving onto the food grows the snake by one segment.\n\nCHOOSING\n  You must answer with one of the directions offered in the response schema.\n  Those are the directions that are not a reversal onto your own neck. They are\n  NOT a list of safe moves: one or more of them may kill you. Work out which.\n  Prefer a move that keeps you alive. Among moves that keep you alive, prefer\n  one that brings you closer to the food.\n  If the schema has a \"why\" field, give one short sentence, no more.\n\nAnswer with JSON matching the schema and nothing else.",
+  "user": "{{board}}\n\nWhich direction?",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "direction": { "type": "string" },
+      "why": { "type": "string" }
+    },
+    "required": ["direction"],
+    "additionalProperties": false
+  },
+  "options": { "temperature": 0, "num_predict": 48 }
+}
