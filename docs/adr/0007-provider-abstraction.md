@@ -51,8 +51,17 @@ model truncated. A pre-flight warning fires when a prompt exceeds a fraction of
 the advertised context. Both are needed because the advertised figure cannot be
 trusted — see below.
 
-**The browser talks to both providers directly.** No proxy, no backend. Vite
-`server.proxy` entries are kept in config, unused, as an escape hatch.
+**The browser talks to Ollama directly. `fm serve` goes through a dev-server
+proxy** (`/fm` -> `127.0.0.1:1976`), because it rejects any request whose
+`Sec-Fetch-Site` is `same-site` or `cross-site` — which every browser sends on a
+cross-origin fetch — and has no flag to change it. The proxy makes the
+browser's request `same-origin`, which it accepts.
+
+This corrects the original decision, which said both providers could be called
+directly and that proxy entries were kept "unused, as an escape hatch". That
+was measured with curl, which never sends `Sec-Fetch-Site`; the claim held only
+for non-browser clients. The proxy entries were also never actually added until
+the first real request failed with a 403.
 
 **Models are discovered at runtime** — `GET /api/tags` and `GET /v1/models` —
 never hardcoded. Configuration in `providers.json` holds providers and

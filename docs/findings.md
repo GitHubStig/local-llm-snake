@@ -199,8 +199,8 @@ correct.
 
 ## 7. Provider reachability
 
-Both providers are reachable directly from a browser page at
-`http://localhost:5173` on stock configuration — no proxy, no backend.
+Ollama is reachable directly from a browser page at `http://localhost:5173`
+on stock configuration. **`fm serve` is not** — see the correction below.
 
 | | Ollama 0.34.2 | `fm serve` |
 |---|---|---|
@@ -216,6 +216,29 @@ being loopback.
 `fm serve` latency: ~210 ms minimal, ~290 ms structured, median 396 ms on a
 matched snake-tick call (min 303, max 935). `fm respond` as a subprocess costs
 685-1423 ms, of which ~500-700 ms is process startup.
+
+### Correction: `fm serve` blocks every browser, not just foreign origins
+
+The measurements above were taken with curl, which never sends
+`Sec-Fetch-Site`. Browsers always do on a cross-origin fetch, and `fm serve`
+checks it. Re-measured 2026-09-21, same `Origin: http://localhost:5173`:
+
+| `Sec-Fetch-Site` | result |
+|---|---|
+| (absent, as curl sends) | 200 |
+| `none` | 200 |
+| `same-origin` | 200 |
+| `same-site` | **403** Cross-site requests are not allowed |
+| `cross-site` | **403** |
+
+`same-site` is rejected too, so pointing the page at `localhost` instead of
+`127.0.0.1` would not help. From a browser, the only accepted value is
+`same-origin`, which a page on port 5173 can never produce for a server on
+port 1976. The first real attempt from the UI failed with exactly this 403.
+
+The fix is a same-origin dev-server proxy (`/fm` -> `127.0.0.1:1976`). The
+browser's request then carries `same-origin`, which is accepted even alongside
+the page's `Origin` header. Verified through the proxy: 200.
 
 ## 8. First live game, 2026-09-21
 
@@ -263,7 +286,40 @@ at once, so selecting a model now preloads it. The same run afterwards:
 Requests also send `keep_alive: "30m"`, since Ollama's 5 minute default would
 evict the model during any pause long enough to read the panel.
 
-## 10. Runtime matrix
+## 10. Assistance levels, live
+
+"Every model just goes straight and dies" was reported from the UI. Measured:
+`gemma4:e2b` at slow speed answered **every** tick — 100% controller share,
+zero timeouts — and still crashed on tick 7 with its own last answer being
+`north`. It was not failing to answer; it was choosing the wall.
+
+Then across all five assistance levels, three seeds each, 60-tick cap,
+coordinates, no `why`:
+
+| level | adds | result per seed (outcome @ tick, food) |
+|---|---|---|
+| 0 | board only | crashed @7, 0 · crashed @7, 0 · crashed @7, 0 |
+| 1 | + legal moves | crashed @7, 0 · crashed @7, 0 · crashed @7, 0 |
+| 2 | + immediately safe moves | crashed @49, 1 · **alive @60**, 0 · **alive @60**, 1 |
+| 3 | + reachable open space | crashed @13, 0 · crashed @13, 0 · crashed @13, 0 |
+| 4 | + planner's recommendation | **alive @60, 6** · **alive @60, 6** · **alive @60, 5** |
+
+- **At levels 0 and 1 the model is not reading the board.** It dies on tick 7
+  on every seed — six cells north from the start into the wall — regardless of
+  where the food spawned. Being told the legal moves changes nothing, which is
+  expected: the schema enum already enforces them.
+- **Level 2 is the survival threshold.** Told which moves are immediately
+  fatal, it lives; it still rarely eats.
+- **Level 3 is worse than level 2.** Adding reachable-space counts took it from
+  surviving to crashing on tick 13 on all three seeds. More information hurt.
+- **Level 4 plays well**, but that is the planner playing; the model ratifies.
+
+The starting position makes level 0 unusually hard. The snake heads north with
+its body trailing south, so south is never a legal first move: food spawning
+below the head requires turning sideways first, and a model that concludes
+"the food is south" finds south missing from the enum.
+
+## 11. Runtime matrix
 
 One `package.json`, no `deno.json`, no `bunfig.toml`. 20 of 21 tasks green.
 

@@ -10,15 +10,27 @@
     {
       "id": "apple",
       "label": "Apple Foundation Models",
-      "baseUrl": "http://127.0.0.1:1976",
+      "baseUrl": "/fm",
       "api": "openai",
       "prompt": "apple"
     }
   ],
   "modelAdvice": [
-    { "capability": "image", "tier": "unusable", "reason": "Image generation, not chat" },
-    { "match": "ocr", "tier": "avoid", "reason": "OCR-specialised" },
-    { "match": ":text$", "tier": "avoid", "reason": "Base model, no chat template" },
+    {
+      "capability": "image",
+      "tier": "unusable",
+      "reason": "Image generation, not chat"
+    },
+    {
+      "match": "ocr",
+      "tier": "avoid",
+      "reason": "OCR-specialised"
+    },
+    {
+      "match": ":text$",
+      "tier": "avoid",
+      "reason": "Base model, no chat template"
+    },
     {
       "match": "^llama3:",
       "tier": "avoid",
@@ -29,6 +41,10 @@
       "tier": "avoid",
       "reason": "Returns empty content; unbounded generation with a free-text field"
     },
-    { "minParams": 20, "tier": "slow", "reason": "Likely to miss the tick deadline" }
+    {
+      "minParams": 20,
+      "tier": "slow",
+      "reason": "Likely to miss the tick deadline"
+    }
   ]
 }
