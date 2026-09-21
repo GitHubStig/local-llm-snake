@@ -56,8 +56,16 @@ Default 0. The primary experimental variable.
 
 ### Representation
 
-How the board is described to the model: grid, coordinates, or both. Default
-both.
+How the board is described to the model: coordinates, grid, or both. Default
+**coordinates** — explicit `(col,row)` pairs, with body segments ordered
+head-to-tail. Showing grid and coordinates together is measurably harmful.
+
+### Directional attractor
+
+A model answering the same direction regardless of the board. Measured across
+four enum orderings, so it is not enum-position bias, and it survived renaming
+the compass directions, so it is not vocabulary. Curable by prompt on one
+model, structural on another.
 
 ### Thinking
 

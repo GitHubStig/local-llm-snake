@@ -35,6 +35,22 @@ interface Provider {
 | Parse | `message.content` -> `JSON.parse` | `choices[0].message.content` -> `JSON.parse` |
 | Health | `GET /api/version` | `GET /health` |
 
+**Default model: `gemma4:e2b`, always sent `"think": false`.** Under the
+coordinate prompt (ADR-0008) it scores 9/10 at 233ms, matching
+`qwen3.8:27b-mlx`'s 9/10 at 638ms for a third of the latency. Omitting `think`
+costs 83x — 8282ms against 101ms — which would blow any tick deadline by an
+order of magnitude.
+
+**Responses are read from `message.content`, falling back to
+`message.thinking` when content is empty.** Three lines, harmless for
+well-behaved models, and it turns a class of defect from fatal into visible.
+
+**Silent truncation is detected at runtime** by comparing the returned
+`prompt_eval_count` against our own token estimate: a lower value means the
+model truncated. A pre-flight warning fires when a prompt exceeds a fraction of
+the advertised context. Both are needed because the advertised figure cannot be
+trusted — see below.
+
 **The browser talks to both providers directly.** No proxy, no backend. Vite
 `server.proxy` entries are kept in config, unused, as an escape hatch.
 
@@ -82,6 +98,27 @@ ADR-0009 needs. The OpenAI shape gives only a coarse `cached_tokens`.
 **Blocking unsuitable models in the dropdown.** Rejected: running a 31B model
 and watching it fail is a demonstration the project wants, not an accident to
 prevent.
+
+## Model-specific findings
+
+Measurements in [findings.md](../findings.md) §5.
+
+- **`qwen3-vl:4b` is excluded.** `message.content` is empty on every call — the
+  schema-constrained JSON is delivered in `message.thinking` instead. It also
+  ignores `think: false` when no schema is sent, and with a free-form string
+  field it enters a repetition loop at temperature 0 and never terminates
+  (exceeded 600s uncapped).
+- **`llama3:latest` is a capability limit, not a prompt problem.** 2/10 across
+  seven prompt variants, and across 57 trials it never emitted `west` or `left`
+  once, though they were correct in 12 of them and offered in the enum every
+  time.
+- **`llama3:latest` also truncates silently**, returning 200 OK with a
+  confidently wrong answer above 8192 tokens, dropping the *middle* of the
+  prompt while protecting the opening tokens. Its effective ceiling measured
+  4108, not the advertised 8192.
+- **`qwen3.8:27b-mlx` stays in the roster** as the honest control. It is
+  accurate and fast enough (426ms), and the fact that it does not beat a 5B
+  model on accuracy is the demonstration this project exists to make.
 
 ## Consequences
 

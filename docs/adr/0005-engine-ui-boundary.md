@@ -12,15 +12,31 @@ being correct and testable in isolation.
 
 `src/game/` imports **nothing** — no Vue, no VueUse, no `fetch`. It contains
 types, the PRNG, the ruleset, `step()`, `legalMoves()`, and opt-in analysis
-helpers. It is exercised by `deno test` with no DOM and no npm resolution at
-all.
+helpers. It is exercised by **`node:test` + `node:assert/strict`** with no DOM and no
+test-runner dependency — which also runs unmodified under Deno and Bun, with
+identical failures, messages and exit codes.
 
 The model controller lives in `src/ai/` precisely because it does I/O, which
 would otherwise contaminate that property.
 
 Shared UI state uses VueUse's `createGlobalState`. **Pinia is not used.**
 
+Two constraints that come with `node:test`:
+
+- **Every test file is named `*.test.ts`.** Node and Deno ignore `*.spec.ts`;
+  only Bun discovers it.
+- **Two test runners must never share a discovery glob.** With a stray
+  Vitest-style file present, Node reported it as a *passing* test while no
+  assertion ever ran.
+
 ## Alternatives considered
+
+**Vitest.** Works under all three runtimes and does not need the Vite config
+for a pure module, but costs ~35 npm packages and is 4-25x slower to start.
+Reserved for the day we need DOM, mocking or coverage.
+
+**Runtime-native test APIs** (`Deno.test`, `bun:test`). Not portable, though
+they at least fail loudly at module load rather than silently skipping.
 
 **Pinia.** Its genuine benefits are devtools time-travel, SSR state
 serialisation, HMR-safe store replacement, and a convention that scales to many

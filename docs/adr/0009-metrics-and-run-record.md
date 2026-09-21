@@ -54,6 +54,16 @@ makes a death inspectable and is the basis for a future replay scrubber.
 **One model-share number instead of typed failures.** Rejected: with large
 models in the roster, *why* a model failed to drive is the interesting datum.
 
+## A known blind spot worth measuring
+
+Every model tested — including the largest — chose a **fatal move because it
+pointed at the food**, on positions where exactly one move survived and the
+food lay elsewhere. No prompt variant fixed it
+([findings.md](../findings.md) §3). The `game-invalid` counter is therefore not
+an edge case; it is the bucket that will show whether a controller can ever
+put survival above food-seeking, and it is the most interesting number this
+project produces.
+
 ## Consequences
 
 - A slow model that never answers would otherwise be indistinguishable from a

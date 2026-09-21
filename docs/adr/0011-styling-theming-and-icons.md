@@ -68,7 +68,7 @@ without declaring it, and Vite 8 ships `tinyglobby`. Unpublished since 2022.
 The maintained fork `vite-plugin-svg-icons-ng` does work, if sprites are ever
 wanted.
 
-**A generated `IconName` union** via a `deno task`. Correct at fifty icons;
+**A generated `IconName` union** via an npm script. Correct at fifty icons;
 overkill at a dozen, and a mechanical upgrade later.
 
 **Two-state light/dark toggle.** Rejected: three-state costs nothing more and
