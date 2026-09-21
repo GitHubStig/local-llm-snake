@@ -40,6 +40,20 @@ CI exists, three jobs running install/build/test — about three seconds each,
 explicitly excluding typecheck and format — would turn the claim into something
 backed.
 
+### TypeScript we cannot use
+
+Node runs `.ts` by **stripping types only**, so any TypeScript that *emits*
+code is rejected at load with `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`. Banned
+throughout:
+
+- parameter properties — `constructor(private x: T) {}`
+- `enum` (use `as const` objects or string unions)
+- `namespace`
+- legacy decorators
+
+This is a project-wide constraint, not a test-only one, because the same
+loader runs `src/`.
+
 ### Non-negotiable
 
 **A `.gitignore` containing `dist` is a correctness requirement, not hygiene.**

@@ -42,9 +42,15 @@ by a provider (ADR-0007).
 ### Overlap
 
 **One request is kept continuously in flight**, not tied to tick boundaries.
-When an answer arrives it becomes the current preferred direction and the next
-request is fired immediately from the current state. Each tick consumes the
-freshest stored answer.
+When an answer arrives it becomes the current preferred direction. Each tick
+consumes the freshest stored answer, and the next request fires **on
+consumption** rather than on arrival — while an unconsumed answer is held, it
+already describes the current board, so asking again would only replace it
+with work computed on the same state.
+
+This was corrected during implementation. Re-requesting on *arrival* also
+turns out to be unimplementable for a controller that resolves synchronously:
+the request loop re-enters itself without ever yielding to a tick.
 
 Before use, a stored answer is discarded if it has become illegal relative to
 the current heading, or exceeded a staleness cap. Staleness is displayed.
