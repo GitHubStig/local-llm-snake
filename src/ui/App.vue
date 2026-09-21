@@ -4,12 +4,13 @@ import { useEventListener } from "@vueuse/core";
 
 import ControlBar from "./components/ControlBar.vue";
 import GameBoard from "./components/GameBoard.vue";
+import DecisionPanel from "./components/DecisionPanel.vue";
 import StatTile from "./components/StatTile.vue";
 import ThemeToggle from "./components/ThemeToggle.vue";
 import { useGame } from "./useGame.ts";
 import type { Direction } from "../game/types.ts";
 
-const { state, stats, lastMove, press, toggle } = useGame();
+const { state, stats, press, toggle } = useGame();
 
 const KEYS: Record<string, Direction> = {
   ArrowUp: "north",
@@ -100,32 +101,7 @@ const outcome = computed(() => {
         </section>
 
         <aside class="flex min-h-0 flex-col rounded-lg border border-line bg-panel p-4">
-          <h2 class="shrink-0 text-sm font-medium">This step's decision</h2>
-
-          <div class="min-h-0 flex-1 overflow-auto">
-            <p v-if="!lastMove" class="mt-2 text-sm text-muted">
-              Nothing yet. Press play, or take a step.
-            </p>
-            <dl v-else class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-              <dt class="text-muted">Direction</dt>
-              <dd class="font-mono">{{ lastMove.direction }}</dd>
-              <dt class="text-muted">Decided by</dt>
-              <dd class="font-mono">
-                {{ lastMove.decidedBy === "controller" ? "controller" : "continued straight" }}
-              </dd>
-              <dt class="text-muted">Latency</dt>
-              <dd class="font-mono tabular-nums">
-                {{ lastMove.latencyMs === null ? "--" : `${lastMove.latencyMs} ms` }}
-              </dd>
-              <dt class="text-muted">Staleness</dt>
-              <dd class="font-mono tabular-nums">{{ lastMove.staleness }}</dd>
-            </dl>
-          </div>
-
-          <p class="mt-3 shrink-0 border-t border-line pt-3 text-xs text-muted">
-            The AI half lands here next: provider and model pickers, the prompt actually sent, and
-            per-direction scoring.
-          </p>
+          <DecisionPanel />
         </aside>
       </div>
     </div>

@@ -2,6 +2,8 @@ import { parseCompletion, pickText } from "./parse.ts";
 import type { CompletionRequest, CompletionResult, ModelInfo, Provider } from "./types.ts";
 
 const NS_PER_MS = 1e6;
+/** Longer than Ollama's 5 minute default, so a pause does not evict the model. */
+const KEEP_ALIVE = "30m";
 
 type ChatResponse = {
   message?: { content?: string; thinking?: string | null };
@@ -30,6 +32,19 @@ export function createOllamaProvider(baseUrl: string, label = "Ollama"): Provide
         return res.ok;
       } catch {
         return false;
+      }
+    },
+
+    async warm(model: string) {
+      try {
+        // An empty prompt loads the weights and returns immediately.
+        await fetch(`${baseUrl}/api/generate`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ model, keep_alive: KEEP_ALIVE }),
+        });
+      } catch {
+        /* the first real call will simply pay the load cost instead */
       }
     },
 
@@ -64,6 +79,7 @@ export function createOllamaProvider(baseUrl: string, label = "Ollama"): Provide
           // Defaults to NDJSON streaming, so this is not optional either.
           stream: false,
           format: request.schema,
+          keep_alive: KEEP_ALIVE,
           options: {
             temperature: 0,
             ...(request.maxTokens ? { num_predict: request.maxTokens } : {}),

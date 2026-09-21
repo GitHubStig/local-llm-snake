@@ -241,7 +241,29 @@ fixed token but something about how the position is presented. Latency is
 healthy (~430ms warm, 4.6s cold including model load), so the loop itself
 performs; what fails is comprehension.
 
-## 9. Runtime matrix
+## 9. Cold start, and why the first game died
+
+Measured 2026-09-21 on `gemma4:e2b`, after an explicit unload:
+
+| | total | of which load |
+|---|---|---|
+| cold call | **2204 ms** | **2088 ms** |
+| after an empty-prompt preload | 108 ms | 23 ms |
+
+A cold model costs over two seconds, almost entirely weight loading. With
+continue-straight on a deadline miss, that is fatal in the literal sense: the
+first live run in the UI scored **0% controller share — 6 timed out, 1 arrived
+stale — and the snake was dead in 7 ticks**, having driven straight into the
+wall before a single answer arrived.
+
+`POST /api/generate` with a model and no prompt loads the weights and returns
+at once, so selecting a model now preloads it. The same run afterwards:
+**57% controller share**, load down to 19 ms.
+
+Requests also send `keep_alive: "30m"`, since Ollama's 5 minute default would
+evict the model during any pause long enough to read the panel.
+
+## 10. Runtime matrix
 
 One `package.json`, no `deno.json`, no `bunfig.toml`. 20 of 21 tasks green.
 

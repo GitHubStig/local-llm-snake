@@ -61,3 +61,14 @@ body {
   background-color: var(--c-bg);
   color: var(--c-text);
 }
+
+/* One shape for every control in the bar, so a select, an input and a button
+   line up without each restating the same six utilities. */
+@layer components {
+  .field {
+    @apply rounded-md border border-line bg-panel px-2 text-sm text-text;
+  }
+  .field:focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+}

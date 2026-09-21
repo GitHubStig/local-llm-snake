@@ -5,6 +5,10 @@ import { createGame } from "../game/engine.ts";
 import { HumanController } from "../game/controllers/human.ts";
 import { Runner, controllerShare, type MoveRecord, type Speed } from "../game/runner.ts";
 import { DEFAULT_RULES, type Direction, type GameState } from "../game/types.ts";
+import type { Controller } from "../game/controller.ts";
+import { ModelController } from "../ai/controller.ts";
+import { DEFAULT_SETTINGS, type PromptSettings } from "../ai/prompt.ts";
+import { useProviders } from "./useProviders.ts";
 
 const randomSeed = () => Math.floor(Math.random() * 100000);
 
@@ -22,16 +26,54 @@ export const useGame = createGlobalState(() => {
   const running = ref(false);
 
   const human = new HumanController();
+
+  const driver = ref<"human" | "model">("human");
+  const selected = ref<{ providerId: string; modelId: string } | null>(null);
+  const settings = ref<PromptSettings>({ ...DEFAULT_SETTINGS });
+  const inFlightSince = ref<number | null>(null);
+  const lastMeta = shallowRef<Record<string, unknown> | null>(null);
+
+  const providers = useProviders();
+
+  /** Human and model are peers; takeover is a controller swap (ADR-0006). */
+  function currentController(): Controller {
+    if (driver.value === "human" || selected.value === null) return human;
+    const { providerId, modelId } = selected.value;
+    const provider = providers.providers.get(providerId);
+    if (!provider) return human;
+
+    return new ModelController({
+      provider,
+      model: modelId,
+      prompt: providers.promptFor(providerId, modelId),
+      settings: settings.value,
+      maxTokens: 48,
+      getState: () => state.value,
+    });
+  }
+
   let runner = build();
 
   function build(): Runner {
     return new Runner(createGame(seed.value, DEFAULT_RULES), {
       seed: seed.value,
-      controller: human,
+      controller: currentController(),
       speed: speed.value,
       onTick: (next, move) => {
         state.value = next;
         lastMove.value = move;
+        const meta = (move.meta ?? null) as Record<string, unknown> | null;
+        if (meta) lastMeta.value = meta;
+        if (move.latencyMs !== null && selected.value && driver.value === "model") {
+          providers.recordLatency(
+            selected.value.providerId,
+            selected.value.modelId,
+            move.latencyMs,
+          );
+        }
+      },
+      onInFlight: (since) => {
+        inFlightSince.value = since;
       },
       onEnd: () => {
         running.value = false;
@@ -75,11 +117,38 @@ export const useGame = createGlobalState(() => {
     runner.setSpeed(next);
   }
 
+  /** Swap who is driving without disturbing the game in progress. */
+  function applyController() {
+    runner.setController(currentController());
+  }
+
+  function setDriver(next: "human" | "model") {
+    driver.value = next;
+    applyController();
+  }
+
+  function setModel(providerId: string, modelId: string) {
+    selected.value = { providerId, modelId };
+    // Preload now, so the first move of the game is not a 2s cold start.
+    void providers.providers.get(providerId)?.warm(modelId);
+    if (driver.value === "model") applyController();
+  }
+
+  function setSettings(next: Partial<PromptSettings>) {
+    settings.value = { ...settings.value, ...next };
+    if (driver.value === "model") applyController();
+  }
+
   function press(direction: Direction) {
     human.press(direction);
   }
 
   const record = computed(() => runner.record);
+  /** Recomputed per tick, which is when failure counts can change. */
+  const failures = computed(() => {
+    void state.value;
+    return runner.record.failures;
+  });
   const stats = computed(() => {
     const s = state.value;
     const moves = record.value.moves.length;
@@ -97,7 +166,16 @@ export const useGame = createGlobalState(() => {
     speed,
     state,
     lastMove,
+    lastMeta,
     running,
+    driver,
+    selected,
+    settings,
+    inFlightSince,
+    failures,
+    setDriver,
+    setModel,
+    setSettings,
     stats,
     record,
     newGame,

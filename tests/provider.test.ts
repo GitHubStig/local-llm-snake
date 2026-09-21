@@ -113,4 +113,21 @@ describe("model advice", () => {
   test("handles a missing parameter size", () => {
     assert.equal(classify(model({ parameterSize: null }), rules).tier, "ok");
   });
+
+  test("reads the size out of the name when the provider reports none", () => {
+    // Ollama reports no parameter_size for MLX builds, which is exactly the
+    // set of large models these rules most need to catch.
+    for (const id of ["qwen3.8:27b-mlx", "muse-glimmer:30b-mlx", "gemma4:31b-mlx"]) {
+      assert.equal(
+        classify(model({ id, parameterSize: null }), rules).tier,
+        "slow",
+        `${id} should be caught by its name`,
+      );
+    }
+  });
+
+  test("does not mistake a non-size token for a size", () => {
+    // "e2b" is a variant name, not 2 billion parameters.
+    assert.equal(classify(model({ id: "gemma4:e2b", parameterSize: null }), rules).tier, "ok");
+  });
 });

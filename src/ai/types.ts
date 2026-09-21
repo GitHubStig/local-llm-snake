@@ -47,6 +47,13 @@ export type Provider = {
   readonly id: string;
   readonly label: string;
   health(): Promise<boolean>;
+  /**
+   * Load the model's weights before play starts.
+   *
+   * A cold call costs ~2.2s, almost all of it load, which at any tick speed
+   * means the snake is dead by the time the first answer lands (ADR-0009).
+   */
+  warm(model: string): Promise<void>;
   listModels(): Promise<ModelInfo[]>;
   complete(request: CompletionRequest): Promise<CompletionResult>;
 };

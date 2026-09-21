@@ -30,6 +30,10 @@ export function createOpenAIProvider(baseUrl: string, id: string, label: string)
       }
     },
 
+    async warm() {
+      // fm serve holds the system model; there is nothing to preload.
+    },
+
     async listModels(): Promise<ModelInfo[]> {
       const res = await fetch(`${baseUrl}/v1/models`);
       if (!res.ok) throw new Error(`${label} /v1/models returned ${res.status}`);

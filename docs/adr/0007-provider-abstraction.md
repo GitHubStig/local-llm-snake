@@ -120,6 +120,20 @@ Measurements in [findings.md](../findings.md) §5.
   accurate and fast enough (426ms), and the fact that it does not beat a 5B
   model on accuracy is the demonstration this project exists to make.
 
+## Amendment, 2026-09-21: preloading
+
+`Provider` gained `warm(model)`, called when a model is selected.
+
+A cold Ollama call costs ~2.2s, of which ~2.1s is weight loading. Combined
+with continue-straight on a miss (ADR-0001), that meant the first live run
+scored 0% controller share and crashed in 7 ticks: the snake was dead before
+the first answer arrived. Preloading takes the first real call to ~108ms and
+the same run to 57%.
+
+Requests carry `keep_alive: "30m"`, because Ollama's 5 minute default evicts
+the model during any pause long enough to actually read the decision panel —
+which would reintroduce the cold cost mid-game.
+
 ## Consequences
 
 - `fm serve` is not a daemon and must be started manually, so the UI needs an

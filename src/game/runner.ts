@@ -28,6 +28,8 @@ export type MoveRecord = {
   latencyMs: number | null;
   /** Ticks between the board the answer was computed on and the board it moved. */
   staleness: number;
+  /** Whatever the controller attached; the panel renders it (ADR-0006). */
+  meta?: Record<string, unknown>;
 };
 
 export type RunRecord = {
@@ -191,7 +193,12 @@ export class Runner {
    * Consume the freshest stored answer, rejecting one that has aged out or
    * become a reverse since it was computed.
    */
-  #take(): { direction: Direction; latencyMs: number; staleness: number } | null {
+  #take(): {
+    direction: Direction;
+    latencyMs: number;
+    staleness: number;
+    meta?: Record<string, unknown>;
+  } | null {
     const stored = this.#stored;
     if (stored === null) {
       this.#record.failures.timedOut++;
@@ -208,7 +215,12 @@ export class Runner {
       this.#record.failures.illegalOnArrival++;
       return null;
     }
-    return { direction: stored.direction, latencyMs: stored.latencyMs, staleness };
+    return {
+      direction: stored.direction,
+      latencyMs: stored.latencyMs,
+      staleness,
+      meta: stored.meta as Record<string, unknown> | undefined,
+    };
   }
 
   #tick(): void {
@@ -223,6 +235,7 @@ export class Runner {
       decidedBy: taken ? "controller" : "continueStraight",
       latencyMs: taken?.latencyMs ?? null,
       staleness: taken?.staleness ?? 0,
+      meta: taken?.meta,
     };
 
     // Schema-valid, in-enum, and still fatal: the interesting bucket (ADR-0009).
