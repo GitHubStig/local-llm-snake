@@ -25,7 +25,7 @@ Configurable, via a `Ruleset` object threaded through the engine as data:
 | `foodCount` | 1 |
 | `growthPerFood` | 1 |
 | `startingLength` | 3 |
-| `hungerLimit` | `100 + length * 10` ticks without food |
+| `hungerBase` / `hungerPerSegment` | 100 / 10 — starve after `base + length * perSegment` ticks |
 | `speedEscalation` | `false` |
 
 Terminal states are distinct and recorded separately: **crashed** (wall or
@@ -67,6 +67,14 @@ topological reasoning, obstacles separate pathfinding from food-seeking.
 **Configurable starting length** is included because the interesting part of
 snake AI is the late game, where a long snake can trap itself. Without it,
 every run spends hundreds of ticks getting there.
+
+## Amendment, 2026-09-21
+
+`hungerLimit` was originally a function on `Ruleset`. Writing the engine tests
+showed that made the ruleset non-serialisable — `structuredClone` refuses a
+function — which would have broken the run record in ADR-0009 and any persisted
+settings. It is now two numbers plus a `hungerLimit(rules, length)` helper, and
+`Ruleset` is plain data.
 
 ## Consequences
 
