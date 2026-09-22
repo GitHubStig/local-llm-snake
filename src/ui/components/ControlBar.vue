@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { releaseFocus } from "../focus.ts";
 import { computed } from "vue";
 import { SPEEDS, type Speed } from "../../game/runner.ts";
 import FieldLabel from "./FieldLabel.vue";
@@ -34,7 +35,10 @@ const hint = computed(() => {
           :value="seed"
           type="number"
           class="field h-9 w-28 font-mono tabular-nums"
-          @change="newGame(Number(($event.target as HTMLInputElement).value))"
+          @change="
+            newGame(Number(($event.target as HTMLInputElement).value));
+            releaseFocus($event);
+          "
         />
       </label>
 
@@ -45,7 +49,10 @@ const hint = computed(() => {
         <select
           :value="speed"
           class="field h-9 w-40 tabular-nums"
-          @change="setSpeed(($event.target as HTMLSelectElement).value as Speed)"
+          @change="
+            setSpeed(($event.target as HTMLSelectElement).value as Speed);
+            releaseFocus($event);
+          "
         >
           <option v-for="option in speeds" :key="option.value" :value="option.value">
             {{ option.label }}

@@ -21,5 +21,12 @@ export type Decision = {
  */
 export interface Controller {
   readonly id: string;
+  /**
+   * Whether an answer reflects the board at the moment it *arrives* rather
+   * than when it was requested. A keypress is made in response to the board on
+   * screen, so it is never stale however long the request sat open; a model
+   * answers about the board it was sent, which may have moved on since.
+   */
+  readonly live?: boolean;
   decide(view: GameView, signal: AbortSignal): Promise<Decision>;
 }

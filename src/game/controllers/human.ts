@@ -13,6 +13,8 @@ import type { Direction, GameView } from "../types.ts";
  */
 export class HumanController implements Controller {
   readonly id = "human";
+  /** A press answers the board on screen now, so staleness never applies. */
+  readonly live = true;
 
   #resolve: ((d: Decision) => void) | null = null;
   /** One pending press, never more. Overwriting is the bug where a fast

@@ -275,6 +275,24 @@ describe("human controller", () => {
     assert.equal((await second).direction, "south");
   });
 
+  test("a press after a long straight run is honoured, not discarded as stale", async () => {
+    // Driving straight means pressing nothing, so the keyboard's request stays
+    // open from the tick it was made on. The press itself is a decision about
+    // the board on screen now, whatever tick the request was opened.
+    const human = new HumanController();
+    const { r } = runner(human);
+    r.start();
+    await flush();
+
+    for (let i = 0; i < 4; i++) r.advance(); // four ticks straight, no keys
+    human.press("east");
+    await flush();
+    r.advance();
+
+    assert.equal(r.state.heading, "east", "the last-moment turn must register");
+    assert.equal(r.record.failures.arrivedStale, 0);
+  });
+
   test("takeover is a controller swap", async () => {
     const human = new HumanController();
     const { r } = runner(new Instant("west"));

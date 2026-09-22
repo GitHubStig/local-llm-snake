@@ -170,16 +170,20 @@ export class Runner {
     const abort = new AbortController();
     const startedAt = this.#clock.now();
     const tick = this.#state.tick;
+    const controller = this.#controller;
     this.#inFlight = { abort, startedAt, tick };
     this.#events.onInFlight?.(startedAt);
 
-    this.#controller
+    controller
       .decide(toView(this.#state), abort.signal)
       .then((decision) => {
         if (abort.signal.aborted) return;
         this.#stored = {
           direction: decision.direction,
-          tick,
+          // Staleness is measured from the board an answer is about. For a
+          // model that is the board it was sent; for a live controller, such
+          // as a keypress, it is the board on screen when the answer arrives.
+          tick: controller.live ? this.#state.tick : tick,
           latencyMs: this.#clock.now() - startedAt,
           forced: decision.forced === true,
           meta: decision.meta,

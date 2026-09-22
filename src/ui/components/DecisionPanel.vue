@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { releaseFocus } from "../focus.ts";
 import { computed } from "vue";
 import { useGame } from "../useGame.ts";
 
@@ -45,7 +46,10 @@ const FAILURE_LABEL: Record<string, string> = {
       <input
         type="checkbox"
         :checked="settings.includeWhy"
-        @change="setSettings({ includeWhy: ($event.target as HTMLInputElement).checked })"
+        @change="
+          setSettings({ includeWhy: ($event.target as HTMLInputElement).checked });
+          releaseFocus($event);
+        "
       />
       Ask why (after the answer, so it never changes the move)
     </label>

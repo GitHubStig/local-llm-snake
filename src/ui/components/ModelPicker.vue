@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { releaseFocus } from "../focus.ts";
 import { computed, onMounted } from "vue";
 import FieldLabel from "./FieldLabel.vue";
 import Icon from "./Icon.vue";
@@ -56,7 +57,10 @@ const current = computed(() =>
       <select
         :value="current"
         class="field h-9 w-56 truncate"
-        @change="onPick(($event.target as HTMLSelectElement).value)"
+        @change="
+          onPick(($event.target as HTMLSelectElement).value);
+          releaseFocus($event);
+        "
       >
         <option value="human">You (keyboard)</option>
         <optgroup v-for="group in grouped" :key="group.providerId" :label="group.providerId">
