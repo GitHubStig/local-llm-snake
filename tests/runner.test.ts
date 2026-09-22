@@ -151,6 +151,22 @@ describe("runner: deciding a tick", () => {
   });
 });
 
+describe("runner: forced moves", () => {
+  test("are recorded as forced, apart from controller decisions", async () => {
+    const forced: Controller = {
+      id: "forced",
+      decide: () => Promise.resolve({ direction: "west", forced: true }),
+    };
+    const { r } = runner(forced);
+    r.start();
+    await flush();
+    r.advance();
+
+    assert.equal(r.record.moves.at(-1)?.decidedBy, "forced");
+    assert.equal(controllerShare(r.record), 0, "a forced move is not the controller's");
+  });
+});
+
 describe("runner: overlap", () => {
   test("holds one request at a time and re-asks once an answer is consumed", async () => {
     const deferred = new Deferred();

@@ -7,8 +7,8 @@ import { Runner, controllerShare, type MoveRecord, type Speed } from "../game/ru
 import { DEFAULT_RULES, type Direction, type GameState } from "../game/types.ts";
 import type { Controller } from "../game/controller.ts";
 import { ModelController } from "../ai/controller.ts";
-import { DEFAULT_SETTINGS, type PromptSettings } from "../ai/prompt.ts";
-import { LEVEL_PROMPTS } from "../prompts/index.ts";
+import { DEFAULT_SETTINGS, type PromptFile, type PromptSettings } from "../ai/prompt.ts";
+import parityPrompt from "../prompts/jev-parity.json" with { type: "json" };
 import { useProviders } from "./useProviders.ts";
 
 const randomSeed = () => Math.floor(Math.random() * 100000);
@@ -46,8 +46,8 @@ export const useGame = createGlobalState(() => {
     return new ModelController({
       provider,
       model: modelId,
-      // A level is a prompt file (ADR-0008).
-      prompt: LEVEL_PROMPTS[settings.value.level],
+      // One prompt, matching the information JEV is given (ADR-0008).
+      prompt: parityPrompt as PromptFile,
       settings: settings.value,
       maxTokens: 48,
       getState: () => state.value,
@@ -160,6 +160,7 @@ export const useGame = createGlobalState(() => {
       length: s.snake.length,
       stepsPerFood: s.foodEaten === 0 ? "--" : (s.tick / s.foodEaten).toFixed(1),
       share: moves === 0 ? 0 : Math.round(controllerShare(record.value) * 100),
+      forced: record.value.moves.filter((m) => m.decidedBy === "forced").length,
     };
   });
 

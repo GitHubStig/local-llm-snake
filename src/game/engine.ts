@@ -53,27 +53,6 @@ export function isImmediatelySafe(state: GameState, direction: Direction): boole
   return !blocked(state, willGrow).some((s) => samePoint(s, target));
 }
 
-/** Opt-in analysis: open cells reachable from `direction`, by flood fill. */
-export function reachableSpace(state: GameState, direction: Direction): number {
-  const start = translate(state.snake[0], direction);
-  if (!isImmediatelySafe(state, direction)) return 0;
-
-  const { width, height } = state.rules;
-  const occupied = new Set(blocked(state, false).map((p) => `${p.col},${p.row}`));
-  const seen = new Set<string>();
-  const queue: Point[] = [start];
-
-  while (queue.length > 0) {
-    const cell = queue.pop() as Point;
-    const key = `${cell.col},${cell.row}`;
-    if (seen.has(key) || occupied.has(key)) continue;
-    if (cell.col < 0 || cell.col >= width || cell.row < 0 || cell.row >= height) continue;
-    seen.add(key);
-    for (const d of DIRECTIONS) queue.push(translate(cell, d));
-  }
-  return seen.size;
-}
-
 function placeFood(state: GameState): GameState {
   const taken = new Set(state.snake.map((p) => `${p.col},${p.row}`));
   for (const f of state.food) taken.add(`${f.col},${f.row}`);

@@ -407,7 +407,24 @@ either way, so asking for an explanation can never change the move. It costs
 rationalisation written after the fact, which is exactly what an observation
 panel should show — honestly labelled.
 
-## 13. Runtime matrix
+## 13. JEV parity: not yet measured
+
+The single parity prompt (ADR-0012) was built on 2026-09-22 while the machine
+had no capacity to spare for model runs, so nothing here has been measured.
+The questions it most needs answering, in order:
+
+1. Does parity play better than the best ladder level — level 2, which
+   survived every game with 25 food across five?
+2. Does the `Heading:` line still act as an attractor now that each option
+   states its own turn and facts? At level 0, with nothing else to go on, it
+   drove the snake into the wall on every seed.
+3. Does sending the grid *and* the head and food positions still hurt, now
+   that the model is not reading the board to find its options?
+
+`scripts/eval-prompt.ts` plays the parity prompt and reports forced moves
+separately.
+
+## 14. Runtime matrix
 
 One `package.json`, no `deno.json`, no `bunfig.toml`. 20 of 21 tasks green.
 

@@ -43,22 +43,49 @@ Displayed; capped; an answer past the cap is discarded.
 
 ### Legal move
 
-One of the at-most-three non-reverse directions. A **rules fact**, not a hint:
-reversing is fatal in every configuration because the neck does not move away
-(ADR-0003). Used for the schema enum, for re-validating stale answers, for the
-illegal-on-arrival counter, and for filtering human input — not for the prompt
-prose.
+One of the at-most-three non-reverse directions. A **rules fact**: reversing is
+fatal in every configuration because the neck does not move away (ADR-0003).
+Used to reject answers that became reverses in flight, and to filter human
+input. Not what the model is offered — see *safe move*.
 
 ### Assistance level
 
-How much precomputed analysis the prompt hands the model, 0 to 4 (ADR-0008).
-Default 0. The primary experimental variable.
+*Historical.* How much precomputed analysis the prompt handed the model, 0 to
+4, in the experiment recorded in ADR-0008 and commit `2f87eb7`. Replaced by a
+single prompt matching JEV's inputs (ADR-0012).
 
 ### Representation
 
-How the board is described to the model: coordinates, grid, or both. Default
-**coordinates** — explicit `(col,row)` pairs, with body segments ordered
-head-to-tail. Showing grid and coordinates together is measurably harmful.
+*Historical.* Whether the board was described as coordinates, a grid, or both
+(ADR-0008). The single prompt uses a grid with a legend, plus head and food as
+named row and column (ADR-0012).
+
+### Safe move
+
+A legal move that does not kill the snake on this step. The only kind of move
+the model is ever offered: the schema's `direction` enum is the safe moves.
+
+### Option facts
+
+What the model is told about each safe move, computed exactly by code: the
+turn, where the head lands, whether it eats or how far the food is afterwards,
+how many empty cells stay reachable, and whether it is a dead end.
+
+### Dead end
+
+A move after which the snake has less room than it is long and cannot follow
+its own tail out. Safe for one step, almost always lost a few steps later.
+
+### Forced move
+
+A move decided by code without calling the model, because there were fewer than
+two safe moves to choose between. Recorded separately so it never counts as the
+controller's decision.
+
+### JEV parity
+
+Giving a local model the same information JEV receives, so the two can be
+compared fairly (ADR-0012).
 
 ### Directional attractor
 

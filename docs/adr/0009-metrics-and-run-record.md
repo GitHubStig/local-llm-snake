@@ -30,6 +30,13 @@ Counted separately rather than folded into one model-share figure:
 - **illegal on arrival** — legal when asked, a reverse by the time it landed
 - **game-invalid** — schema-valid, in-enum, and still suicidal
 
+### Forced moves
+
+*Added 2026-09-22.* With fewer than two safe moves, code decides without
+calling the model (ADR-0012). Those moves are recorded as `forced`, a third
+kind alongside controller decisions and continue-straight, so they never
+inflate controller share.
+
 ### Live state
 
 While a request is outstanding the panel shows it: *waiting on

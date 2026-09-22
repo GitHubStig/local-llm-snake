@@ -2,6 +2,12 @@ import type { Direction, GameView } from "./types.ts";
 
 export type Decision = {
   direction: Direction;
+  /**
+   * Decided by code rather than by whatever the controller consults, because
+   * there was nothing to choose between. Counted apart from controller
+   * decisions so it cannot inflate controller share (ADR-0006).
+   */
+  forced?: boolean;
   /** Opaque to the engine; the decision panel renders it (ADR-0006). */
   meta?: Record<string, unknown>;
 };

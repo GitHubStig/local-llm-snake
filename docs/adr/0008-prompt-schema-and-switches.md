@@ -1,9 +1,14 @@
 # ADR-0008: Prompt, schema and experiment switches
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0012](0012-single-prompt-matching-jev.md)
 - **Date:** 2026-09-21
 - **Amended:** 2026-09-21, after the prompt-variation study. The representation
   default was reversed; see below.
+
+> Kept as the record of the assistance-level experiment, which is what led to
+> ADR-0012. The code for it is preserved at commit `2f87eb7`. The rules on
+> `think`, `why` placement and static system prompts carry over; the ladder,
+> the representation switch and the planner do not.
 
 ## Context
 
@@ -153,9 +158,12 @@ be opened and read.
 - **`think` defaults to ON and costs 83x** — 8282ms against 101ms on
   `gemma4:e2b`, where omitting the parameter is byte-for-byte identical to
   `think: true`. Sending `false` explicitly is not optional.
-- **The `why` toggle is a three-way trade: speed, insight and accuracy.** It
-  takes `gemma4:e2b` from 2/5 to 4/5 on the original cases — it functions as a
-  miniature chain of thought, not merely a panel feature. Its cost is strongly
+- **The `why` toggle costs latency, and nothing else once placed after the
+  answer.** *Corrected:* this originally claimed `why` lifted `gemma4:e2b` from
+  2/5 to 4/5 as a miniature chain of thought. That came from five isolated
+  positions with `why` placed first; over real games `why`-first cut food by
+  more than half, and `why`-after leaves every move identical
+  ([findings.md](../findings.md) §12). Its cost is strongly
   model-specific: 2.04x on `llama3:latest`, 8.48x on `qwen3.8:27b-mlx`, 11.16x
   on `gemma4:e2b`. The 6.5x figure originally recorded here came from a model
   since excluded and is not representative.

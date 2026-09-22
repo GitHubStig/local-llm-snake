@@ -24,7 +24,7 @@ export type FailureKind = "timedOut" | "arrivedStale" | "illegalOnArrival" | "ga
 export type MoveRecord = {
   tick: number;
   direction: Direction;
-  decidedBy: "controller" | "continueStraight";
+  decidedBy: "controller" | "forced" | "continueStraight";
   latencyMs: number | null;
   /** Ticks between the board the answer was computed on and the board it moved. */
   staleness: number;
@@ -38,7 +38,13 @@ export type RunRecord = {
   failures: Record<FailureKind, number>;
 };
 
-type Stored = { direction: Direction; tick: number; latencyMs: number; meta?: unknown };
+type Stored = {
+  direction: Direction;
+  tick: number;
+  latencyMs: number;
+  forced: boolean;
+  meta?: unknown;
+};
 
 export type RunnerEvents = {
   onTick?: (state: GameState, record: MoveRecord) => void;
@@ -59,9 +65,10 @@ export type RunnerOptions = {
 /**
  * Drives the game clock and keeps exactly one controller request in flight.
  *
- * The request is deliberately not tied to tick boundaries: when an answer
- * lands it becomes the current preference and the next request fires at once,
- * so a controller slower than the tick still contributes moves (ADR-0006).
+ * The request is deliberately not tied to tick boundaries: an answer that
+ * lands becomes the current preference, and the next request fires as soon as
+ * a tick consumes it, so a controller slower than the tick still contributes
+ * moves (ADR-0006).
  */
 export class Runner {
   #state: GameState;
@@ -174,6 +181,7 @@ export class Runner {
           direction: decision.direction,
           tick,
           latencyMs: this.#clock.now() - startedAt,
+          forced: decision.forced === true,
           meta: decision.meta,
         };
       })
@@ -197,6 +205,7 @@ export class Runner {
     direction: Direction;
     latencyMs: number;
     staleness: number;
+    forced: boolean;
     meta?: Record<string, unknown>;
   } | null {
     const stored = this.#stored;
@@ -219,6 +228,7 @@ export class Runner {
       direction: stored.direction,
       latencyMs: stored.latencyMs,
       staleness,
+      forced: stored.forced,
       meta: stored.meta as Record<string, unknown> | undefined,
     };
   }
@@ -232,14 +242,17 @@ export class Runner {
     const move: MoveRecord = {
       tick: this.#state.tick,
       direction,
-      decidedBy: taken ? "controller" : "continueStraight",
+      decidedBy: taken ? (taken.forced ? "forced" : "controller") : "continueStraight",
       latencyMs: taken?.latencyMs ?? null,
       staleness: taken?.staleness ?? 0,
       meta: taken?.meta,
     };
 
     // Schema-valid, in-enum, and still fatal: the interesting bucket (ADR-0009).
-    if (taken && this.#state.outcome === "crashed") this.#record.failures.gameInvalid++;
+    // A forced move is code's, not the controller's, so it never counts here.
+    if (taken && !taken.forced && this.#state.outcome === "crashed") {
+      this.#record.failures.gameInvalid++;
+    }
 
     this.#record.moves.push(move);
     this.#events.onTick?.(this.#state, move);

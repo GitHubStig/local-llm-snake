@@ -1,3 +1,4 @@
+import { analyze } from "../game/analysis.ts";
 import type { Controller, Decision } from "../game/controller.ts";
 import type { Direction, GameState, GameView } from "../game/types.ts";
 import { buildSchema, buildUser, type PromptFile, type PromptSettings } from "./prompt.ts";
@@ -28,10 +29,25 @@ export class ModelController implements Controller {
 
   async decide(view: GameView, signal: AbortSignal): Promise<Decision> {
     const { provider, model, prompt, settings, maxTokens, getState } = this.#options;
-    const state = getState();
+    const facts = analyze(getState());
 
-    const user = buildUser(prompt, state, view, settings);
-    const schema = buildSchema(prompt, view.legalMoves, settings.includeWhy);
+    // With fewer than two safe moves there is nothing to choose, so code
+    // decides and the model is not called — as JEV does. With none, every move
+    // is fatal and the snake carries on straight.
+    if (facts.length < 2) {
+      return {
+        direction: facts[0]?.direction ?? view.heading,
+        forced: true,
+        meta: { forced: true, options: facts.length },
+      };
+    }
+
+    const user = buildUser(prompt, view, facts);
+    const schema = buildSchema(
+      prompt,
+      facts.map((f) => f.direction),
+      settings.includeWhy,
+    );
 
     const result = await provider.complete({
       model,
@@ -43,9 +59,8 @@ export class ModelController implements Controller {
     });
 
     const direction = result.value.direction as Direction | undefined;
-    // Constrained decoding guarantees shape, never correctness, and a stale
-    // answer may have gone illegal in flight (ADR-0008).
-    if (!direction || !view.legalMoves.includes(direction)) {
+    // Constrained decoding guarantees shape, never correctness (ADR-0008).
+    if (!direction || !facts.some((f) => f.direction === direction)) {
       throw new Error(`model returned an unusable direction: ${String(direction)}`);
     }
 

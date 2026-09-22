@@ -31,15 +31,6 @@ const raw = computed(() => (lastMeta.value?.raw as string | undefined) ?? null);
 const truncated = computed(() => lastMeta.value?.truncated === true);
 const source = computed(() => lastMeta.value?.source as string | undefined);
 
-/** How much the harness does for the model — the experiment itself (ADR-0008). */
-const LEVELS = [
-  { value: 0, label: "Board only" },
-  { value: 1, label: "+ legal moves" },
-  { value: 2, label: "+ safe moves" },
-  { value: 3, label: "+ open space" },
-  { value: 4, label: "+ recommended move" },
-] as const;
-
 const FAILURE_LABEL: Record<string, string> = {
   timedOut: "Timed out",
   arrivedStale: "Arrived stale",
@@ -50,34 +41,14 @@ const FAILURE_LABEL: Record<string, string> = {
 
 <template>
   <div class="flex min-h-0 flex-col gap-3">
-    <div class="flex shrink-0 flex-col gap-2 border-b border-line pb-3">
-      <div class="flex items-center justify-between gap-2">
-        <label class="flex flex-col gap-1">
-          <span class="text-[11px] leading-4 text-muted">Help given to the model</span>
-          <select
-            :value="settings.level"
-            class="field h-8 w-48"
-            @change="
-              setSettings({
-                level: Number(($event.target as HTMLSelectElement).value) as 0 | 1 | 2 | 3 | 4,
-              })
-            "
-          >
-            <option v-for="level in LEVELS" :key="level.value" :value="level.value">
-              {{ level.value }} · {{ level.label }}
-            </option>
-          </select>
-        </label>
-        <label class="flex items-center gap-1.5 self-end pb-1.5 text-[11px] text-muted">
-          <input
-            type="checkbox"
-            :checked="settings.includeWhy"
-            @change="setSettings({ includeWhy: ($event.target as HTMLInputElement).checked })"
-          />
-          Ask why
-        </label>
-      </div>
-    </div>
+    <label class="flex shrink-0 items-center gap-1.5 self-end text-[11px] text-muted">
+      <input
+        type="checkbox"
+        :checked="settings.includeWhy"
+        @change="setSettings({ includeWhy: ($event.target as HTMLInputElement).checked })"
+      />
+      Ask why (after the answer, so it never changes the move)
+    </label>
 
     <div class="flex shrink-0 items-center justify-between gap-2">
       <h2 class="text-sm font-medium">This step's decision</h2>
@@ -184,7 +155,9 @@ const FAILURE_LABEL: Record<string, string> = {
     </div>
 
     <p class="shrink-0 border-t border-line pt-2 text-xs text-muted">
-      Controller decided {{ stats.share }}% of moves.
+      Controller decided {{ stats.share }}% of moves<template v-if="stats.forced">
+        · {{ stats.forced }} forced by code, with only one safe move</template
+      >.
     </p>
   </div>
 </template>

@@ -6,7 +6,6 @@ import {
   hungerLimit,
   isImmediatelySafe,
   legalMoves,
-  reachableSpace,
   step,
 } from "../src/game/engine.ts";
 import { deriveStreams, nextInt } from "../src/game/prng.ts";
@@ -156,30 +155,10 @@ describe("step", () => {
   });
 });
 
-describe("opt-in analysis", () => {
+describe("immediate safety", () => {
   test("isImmediatelySafe rejects walls and body, accepts open floor", () => {
     const g = bare({ snake: [{ col: 0, row: 0 }], heading: "east" });
     assert.equal(isImmediatelySafe(g, "west"), false);
     assert.equal(isImmediatelySafe(g, "east"), true);
-  });
-
-  test("reachableSpace exposes a pocket that one-ply safety cannot see", () => {
-    // The body walls off column 2 top to bottom, so west is a sealed 8-cell
-    // pocket while east is open. Both look equally safe at one ply.
-    const walled = bare({
-      rules: rules({ width: 6, height: 4 }),
-      snake: [
-        { col: 2, row: 0 },
-        { col: 2, row: 1 },
-        { col: 2, row: 2 },
-        { col: 2, row: 3 },
-        { col: 3, row: 3 },
-      ],
-      heading: "north",
-    });
-    assert.equal(isImmediatelySafe(walled, "west"), true);
-    assert.equal(isImmediatelySafe(walled, "east"), true);
-    assert.equal(reachableSpace(walled, "west"), 8);
-    assert.equal(reachableSpace(walled, "east"), 12);
   });
 });

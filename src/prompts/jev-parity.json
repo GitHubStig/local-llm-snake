@@ -1,0 +1,23 @@
+{
+  "system": "You are playing Snake. Each turn you choose the direction the snake's head moves next.\n\nTHE BOARD\n  H is the snake's head, o its body, T its tail, F the food, and . an empty cell.\n  Row 0 is the top row and column 0 is the leftmost column.\n  Moving off the edge of the grid hits a wall.\n\nTHE RULES\n  The snake grows by one segment when it eats the food.\n  The game ends when the head hits a wall or any part of the snake's own body.\n\nYOUR OPTIONS\n  Every option you are offered is safe for this one step.\n  The facts listed with each option were computed exactly by code: trust them\n  rather than working them out yourself.\n  An option marked DEAD END almost always loses the game a few steps later.\n\nYOUR GOAL\n  Stay alive and eat food.\n\nAnswer with JSON matching the schema and nothing else. Give the direction first.\nIf the schema also has a \"why\" field, use it to explain your choice in one\nshort sentence.",
+  "user": "{{board}}\n\nHead: {{head}}\nFood: {{food}}\nHeading: {{heading}}\nSnake length: {{length}}\nGrid: {{gridSize}}\nFood is next to the head: {{foodAdjacent}}\n\nOptions:\n{{options}}\n\nWhich direction?",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "direction": {
+        "type": "string"
+      },
+      "why": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "direction"
+    ],
+    "additionalProperties": false
+  },
+  "options": {
+    "temperature": 0,
+    "num_predict": 64
+  }
+}
