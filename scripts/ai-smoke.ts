@@ -10,7 +10,7 @@ import { createOllamaProvider } from "../src/ai/ollama.ts";
 import { DEFAULT_SETTINGS, type PromptFile } from "../src/ai/prompt.ts";
 
 const model = process.argv[2] ?? "gemma4:e2b";
-const prompt = JSON.parse(readFileSync("src/prompts/default.json", "utf8")) as PromptFile;
+const prompt = JSON.parse(readFileSync("src/prompts/level-0.json", "utf8")) as PromptFile;
 const provider = createOllamaProvider("http://localhost:11434");
 
 if (!(await provider.health())) {

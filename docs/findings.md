@@ -319,7 +319,95 @@ its body trailing south, so south is never a legal first move: food spawning
 below the head requires turning sideways first, and a model that concludes
 "the food is south" finds south missing from the enum.
 
-## 11. Runtime matrix
+## 11. Making level 0 work: it was the prompt
+
+Same model (`gemma4:e2b`), level 0, five seeds, 60-tick cap, direction-only
+schema. Measured with `scripts/eval-prompt.ts`:
+
+| variant | ticks survived | food | alive | median |
+|---|---|---|---|---|
+| A · baseline | 7, 7, 7, 7, 7 | 2 | 0/5 | 251 ms |
+| B · drop the `Heading:` line | 7, 12, 10, 24, 6 | 4 | 0/5 | 259 ms |
+| **C · B + the food's offset in words** | **60, 60, 20, 40, 37** | **23** | **2/5** | **221 ms** |
+| D · C + a scratchpad schema | 55, 60, 43, 52, 60 | 19 | 2/5 | 1050 ms |
+| E · C, all in one user message | 38, 12, 21, 29, 37 | 16 | 0/5 | 263 ms |
+
+- **The `Heading: north` line was the attractor.** With it present the model
+  died on tick 7 on every seed; removing it spread deaths from tick 6 to 24.
+  At level 0 with nothing else to go on, the model was echoing the heading.
+- **One line fixed it.** *"The food at (6,6) is 1 west and 4 south of the
+  head."* took food eaten from 4 to 23 across five games, at no latency cost.
+  The model can use direction words; it could not turn raw coordinates into one.
+- **A scratchpad schema** — the model fills in each option's destination cell
+  and its contents before choosing — survives more consistently (worst run 43
+  ticks against C's 20) but eats less and is **5x slower**.
+- **Splitting system and user helps.** Merging everything into one user message
+  was worse on every measure.
+- C reproduced byte for byte on a rerun: temperature 0 is deterministic here.
+
+Verified in the UI afterwards: level 0, alive after 24 ticks with 3 food, where
+it had died on tick 7 on every attempt.
+
+**Is the food offset "help"?** It restates coordinates the model already has,
+in the vocabulary it must answer with, and says nothing about which moves are
+safe. That was judged to be representation rather than assistance, so it sits
+in level 0. It is still a judgement call.
+
+## 12. One prompt per level
+
+Each assistance level now has its own prompt file, whose system prompt
+explains the help that level gives. `gemma4:e2b`, five seeds, 60-tick cap,
+`why` off:
+
+| level | ticks survived | food | alive |
+|---|---|---|---|
+| 0 · board + food offset | 60, 25, 33, 60, 37 | 24 | 2/5 |
+| 1 · + legal moves | 21, 24, 13, 7, 48 | 9 | 0/5 |
+| 2 · + safe moves | 60, 60, 60, 60, 60 | 25 | 5/5 |
+| 3 · + open space | 60, 60, 60, 60, 60 | 13 | 5/5 |
+| 4 · + recommendation | 60, 60, 60, 60, 60 | 29 | 5/5 |
+
+- **Level 3 is fixed.** Under the shared prompt it crashed on tick 13 on every
+  seed, worse than level 2, because nothing explained what the space figures
+  meant. Its own prompt says a figure below your length is a trap, and it now
+  survives every game.
+- **Level 1 is worse than level 0.** Listing the legal moves repeats what the
+  schema enum already enforces, and the redundant line costs food and every
+  survivor.
+- **Level 3 survives as well as level 2 but eats half as much.** Knowing about
+  traps makes it cautious.
+
+### `why` belongs after the answer, not before
+
+Placing `why` *before* `direction` was recommended on the strength of earlier
+research, where reasoning-first lifted gemma from 2/5 to 4/5 on five isolated
+positions. Over real games it did the opposite:
+
+| level | food, `why` off | food, `why` first |
+|---|---|---|
+| 0 | 20 | 8 |
+| 2 | 27 | 11 |
+| 3 | 13 | 4 |
+| 4 | 29 | 29 |
+
+Survival was roughly unchanged; food fell by more than half. Reasoning first
+made the model cautious, not better.
+
+With `why` placed **after** `direction`, the games are **identical** to `why`
+off — the same ticks on every seed, the same food, the same survivors:
+
+| level | `why` off | `why` after |
+|---|---|---|
+| 0 | 60, 25, 33, 60, 37 · 24 food | 60, 25, 33, 60, 37 · 24 food |
+| 2 | all 60 · 25 food | all 60 · 25 food |
+
+At temperature 0 the direction token is decoded from exactly the same prefix
+either way, so asking for an explanation can never change the move. It costs
+~150-200 ms of latency and nothing else. The explanation is therefore a
+rationalisation written after the fact, which is exactly what an observation
+panel should show — honestly labelled.
+
+## 13. Runtime matrix
 
 One `package.json`, no `deno.json`, no `bunfig.toml`. 20 of 21 tasks green.
 

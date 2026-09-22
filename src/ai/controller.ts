@@ -30,11 +30,14 @@ export class ModelController implements Controller {
     const { provider, model, prompt, settings, maxTokens, getState } = this.#options;
     const state = getState();
 
+    const user = buildUser(prompt, state, view, settings);
+    const schema = buildSchema(prompt, view.legalMoves, settings.includeWhy);
+
     const result = await provider.complete({
       model,
       system: prompt.system,
-      user: buildUser(prompt, state, view, settings),
-      schema: buildSchema(prompt, view.legalMoves, settings.includeWhy),
+      user,
+      schema,
       maxTokens,
       signal,
     });
@@ -49,6 +52,8 @@ export class ModelController implements Controller {
     return {
       direction,
       meta: {
+        // Exactly what went over the wire, so the panel can show it.
+        request: { model, system: prompt.system, user, schema, maxTokens },
         why: result.value.why ?? null,
         raw: result.raw,
         source: result.source,

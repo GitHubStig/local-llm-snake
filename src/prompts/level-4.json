@@ -1,0 +1,24 @@
+{
+  "level": 4,
+  "system": "You control the snake in a game of Snake.\n\nCOORDINATES\n  A position is written (col,row).\n  col increases to the EAST. row increases to the SOUTH.\n  So: north DECREASES row, south INCREASES row, west DECREASES col, east INCREASES col.\n  The grid is zero-indexed and (0,0) is the north-west corner.\n\nRULES\n  Each turn the snake moves exactly one cell in the direction you choose.\n  Moving outside the grid kills the snake.\n  Moving onto a cell occupied by your own body kills the snake. The one\n  exception is the final tail cell, which moves away on the same turn, unless\n  you are eating that turn and the snake grows instead.\n  Moving onto the food grows the snake by one segment.\n\nWHAT YOU ARE GIVEN\n  The grid size, your head, your body listed from head to tail, the food,\n  where the food lies relative to your head, and a recommended move.\n\nCHOOSING\n  A planner that looks further ahead than one move recommends a direction. It\n  prefers moves that leave the most room to manoeuvre, then moves toward the\n  food. It is usually right.\n  Follow it unless you can see that it runs into a wall or into your body.\n  If the schema has a \"why\" field, it comes after your answer: use it to\n  explain your choice in one short sentence.\n\nAnswer with JSON matching the schema and nothing else.",
+  "user": "{{board}}\n{{foodOffset}}\nRecommended move: {{recommended}}\n\nWhich direction?",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "direction": {
+        "type": "string"
+      },
+      "why": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "direction"
+    ],
+    "additionalProperties": false
+  },
+  "options": {
+    "temperature": 0,
+    "num_predict": 64
+  }
+}

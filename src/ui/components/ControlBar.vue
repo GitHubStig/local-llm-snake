@@ -10,7 +10,11 @@ import { useProviders } from "../useProviders.ts";
 const { seed, speed, running, state, newGame, toggle, stepOnce, setSpeed } = useGame();
 const { entries, online, loading } = useProviders();
 
-const speeds = Object.keys(SPEEDS) as Speed[];
+/** "Normal · 400 ms" — the tick interval is what a model's latency races against. */
+const speeds = (Object.keys(SPEEDS) as Speed[]).map((value) => ({
+  value,
+  label: `${value[0].toUpperCase()}${value.slice(1)} · ${SPEEDS[value]} ms`,
+}));
 
 /** One line under the bar, so a hint never shifts the fields out of line. */
 const hint = computed(() => {
@@ -40,10 +44,12 @@ const hint = computed(() => {
         <FieldLabel text="Speed" />
         <select
           :value="speed"
-          class="field h-9 w-28 capitalize"
+          class="field h-9 w-40 tabular-nums"
           @change="setSpeed(($event.target as HTMLSelectElement).value as Speed)"
         >
-          <option v-for="option in speeds" :key="option" :value="option">{{ option }}</option>
+          <option v-for="option in speeds" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
         </select>
       </label>
 

@@ -5,9 +5,29 @@ import { useGame } from "../useGame.ts";
 const { lastMove, lastMeta, inFlightSince, failures, driver, settings, setSettings, stats } =
   useGame();
 
-const elapsed = computed(() => (inFlightSince.value === null ? null : inFlightSince.value));
+/**
+ * Always rendered at a fixed size. The in-flight state flips on and off every
+ * tick, so anything that appears and disappears with it shoves the rest of the
+ * panel up and down several times a second.
+ */
+const status = computed(() => {
+  if (driver.value !== "model") return { label: "You're driving", waiting: false };
+  return inFlightSince.value === null
+    ? { label: "Ready", waiting: false }
+    : { label: "Waiting", waiting: true };
+});
 
 const why = computed(() => (lastMeta.value?.why as string | null) ?? null);
+
+type SentRequest = {
+  model: string;
+  system: string;
+  user: string;
+  schema: Record<string, unknown>;
+  maxTokens?: number;
+};
+const request = computed(() => (lastMeta.value?.request as SentRequest | undefined) ?? null);
+const raw = computed(() => (lastMeta.value?.raw as string | undefined) ?? null);
 const truncated = computed(() => lastMeta.value?.truncated === true);
 const source = computed(() => lastMeta.value?.source as string | undefined);
 
@@ -57,22 +77,26 @@ const FAILURE_LABEL: Record<string, string> = {
           Ask why
         </label>
       </div>
-      <p v-if="settings.level === 0" class="text-[11px] leading-4 text-muted">
-        At level 0 the small models tested die on tick 7 every time. Level 2 is where they start to
-        survive.
-      </p>
     </div>
 
-    <h2 class="shrink-0 text-sm font-medium">This step's decision</h2>
+    <div class="flex shrink-0 items-center justify-between gap-2">
+      <h2 class="text-sm font-medium">This step's decision</h2>
+      <span
+        class="inline-flex h-6 w-28 items-center justify-center gap-1.5 rounded-full border text-[11px] transition-colors duration-150"
+        :class="
+          status.waiting ? 'border-accent/40 bg-accent/10 text-accent' : 'border-line text-muted'
+        "
+        role="status"
+      >
+        <span
+          class="size-1.5 rounded-full transition-colors duration-150"
+          :class="status.waiting ? 'bg-accent' : 'bg-line'"
+        ></span>
+        {{ status.label }}
+      </span>
+    </div>
 
     <div class="min-h-0 flex-1 overflow-auto">
-      <p
-        v-if="driver === 'model' && elapsed !== null"
-        class="rounded-md border border-accent/30 bg-accent/10 px-2 py-1.5 text-xs text-accent"
-      >
-        Waiting on the model…
-      </p>
-
       <p v-if="!lastMove" class="mt-2 text-sm text-muted">
         Nothing yet. Press play, or take a step.
       </p>
@@ -114,6 +138,40 @@ const FAILURE_LABEL: Record<string, string> = {
         </p>
       </template>
 
+      <details v-if="request" class="group mt-4 rounded-md border border-line">
+        <summary
+          class="cursor-pointer select-none px-2 py-1.5 text-xs font-medium text-muted hover:text-text"
+        >
+          What was sent to {{ request.model }}
+        </summary>
+        <div class="flex flex-col gap-3 border-t border-line p-2">
+          <section>
+            <h4 class="mb-1 text-[11px] text-muted">User — changes every tick</h4>
+            <pre class="sent">{{ request.user }}</pre>
+          </section>
+          <section>
+            <h4 class="mb-1 text-[11px] text-muted">Response</h4>
+            <pre class="sent">{{ raw }}</pre>
+          </section>
+          <details>
+            <summary class="cursor-pointer text-[11px] text-muted hover:text-text">
+              System — identical every tick
+            </summary>
+            <pre class="sent mt-1">{{ request.system }}</pre>
+          </details>
+          <details>
+            <summary class="cursor-pointer text-[11px] text-muted hover:text-text">
+              Schema — direction enum rebuilt each tick
+            </summary>
+            <pre class="sent mt-1">{{ JSON.stringify(request.schema, null, 2) }}</pre>
+          </details>
+          <p class="text-[11px] text-muted">
+            Plus <code>think: false</code>, <code>temperature: 0</code>, and a
+            {{ request.maxTokens ?? "no" }}-token output cap.
+          </p>
+        </div>
+      </details>
+
       <h3 class="mt-4 text-xs font-medium text-muted">Why moves were not decided</h3>
       <dl class="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
         <template v-for="(count, kind) in failures" :key="kind">
@@ -130,3 +188,18 @@ const FAILURE_LABEL: Record<string, string> = {
     </p>
   </div>
 </template>
+
+<style scoped>
+.sent {
+  max-height: 14rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-radius: 0.375rem;
+  background-color: var(--c-bg);
+  padding: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+}
+</style>

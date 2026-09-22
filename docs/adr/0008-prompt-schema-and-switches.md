@@ -13,8 +13,29 @@ answers the question the project exists to ask. Measurements in
 
 ## Decision
 
-Prompts and schemas live in editable JSON under `src/prompts/`, referenced from
-`providers.json` per provider, with per-model overrides.
+**One prompt file per assistance level** — `src/prompts/level-0.json` through
+`level-4.json` — each complete in itself: its own system prompt, its own user
+template and its own schema. A level *is* a file, and everything sent to the
+model at that level can be read in it.
+
+*Amended 2026-09-21.* The original design had one shared prompt per provider,
+with the code appending each level's extra lines to the board. That shared
+prompt never explained the extra lines, and it measurably failed: at level 3
+the model saw `Reachable open space: north 71, east 12` with no account of what
+the numbers meant, and crashed on tick 13 on every seed — worse than level 2.
+With its own prompt saying that a figure below your length means a trap, level
+3 survived every game ([findings.md](../findings.md) §12).
+
+The code computes named values each tick and a level's template chooses which
+to show: `{{board}}`, `{{foodOffset}}`, `{{legalMoves}}`, `{{safeMoves}}`,
+`{{space}}`, `{{length}}`, `{{recommended}}`. An unknown placeholder throws.
+Placeholders are allowed **only in the user template**: the system prompt must
+stay byte-identical across ticks to remain a cacheable prefix, and a test
+enforces that for every shipped file.
+
+Per-provider prompts were dropped. The Apple file was a byte-for-byte copy of
+the Ollama one, so the indirection bought nothing; it can return if a provider
+ever needs different wording.
 
 ```jsonc
 {
@@ -32,8 +53,8 @@ Prompts and schemas live in editable JSON under `src/prompts/`, referenced from
 }
 ```
 
-`{{board}}` is the only template placeholder. The engine writes
-`properties.direction.enum` each turn and removes `why` when that toggle is off.
+The engine writes `properties.direction.enum` each turn and removes `why` when
+that toggle is off.
 
 ### Three experiment switches, per run and recorded
 
@@ -58,6 +79,12 @@ Coordinates are best-or-tied-best for every model, fastest for the largest
 **Showing both is actively harmful.** It is the worst variant measured and the
 only one that degrades the strongest model, taking it from 5/5 to 2/5.
 
+**No `Heading:` line, and the food's offset stated in direction words.** At
+level 0 the model echoed the heading straight into the wall on every seed; with
+the line removed and the offset added (*"is 1 west and 4 south of the head"*),
+food eaten across five games went from 2 to 23. The heading remains implied by
+the body order. See [findings.md](../findings.md) §11.
+
 **Body segments must be listed ordered head-to-tail.** An ASCII grid carries no
 segment ordering, so a coordinate summary built from an unordered set makes the
 no-reversal rule unstatable. `GameView` already holds the snake head-first;
@@ -70,7 +97,13 @@ the prompt builder must preserve that and say so.
   latency; both are off on the tick call.
 - **`why` is a single call, toggleable, default on**, capped by
   `options.num_predict` rather than schema `maxLength`, which may not survive
-  grammar conversion.
+  grammar conversion. When on it is **required**, not merely allowed: left
+  optional, the model skipped it under constrained decoding.
+- **`why` comes after `direction`.** At temperature 0 the direction is then
+  decoded from the same prefix as with `why` off, so asking for an explanation
+  cannot change the move — measured: identical games on every seed. Placing it
+  *first*, as reasoning, was tried and cut food eaten by more than half at most
+  levels ([findings.md](../findings.md) §12).
 - **The `direction` enum is always the legal moves**, at every assistance level,
   so a reverse cannot be returned.
 - **The prompt must not claim the offered directions are safe.** Our enum is

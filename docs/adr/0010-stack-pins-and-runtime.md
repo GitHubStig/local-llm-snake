@@ -34,6 +34,10 @@ Every element of that shape is simply correct on any runtime:
 - Path aliases in `vite.config.ts`, mirrored by `paths` in `tsconfig.json`
 - Relative `import.meta.glob` patterns
 - `tsconfig.json` with **no `baseUrl`**
+- JSON imported as a module with `with { type: "json" }`, never read from disk
+  in shared code. Deno's sandbox denies file reads by default, so a test that
+  used `readFileSync` on the prompt files passed on Node and Bun and failed on
+  Deno — silently, in a summary line that still looked green at a glance.
 
 But **we do not claim tri-runtime support**, because nothing verifies it. When
 CI exists, three jobs running install/build/test — about three seconds each,

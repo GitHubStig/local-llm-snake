@@ -4,15 +4,13 @@
       "id": "ollama",
       "label": "Ollama",
       "baseUrl": "http://localhost:11434",
-      "api": "ollama",
-      "prompt": "default"
+      "api": "ollama"
     },
     {
       "id": "apple",
       "label": "Apple Foundation Models",
       "baseUrl": "/fm",
-      "api": "openai",
-      "prompt": "apple"
+      "api": "openai"
     }
   ],
   "modelAdvice": [

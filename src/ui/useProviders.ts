@@ -2,18 +2,10 @@ import { createGlobalState } from "@vueuse/core";
 import { computed, ref, shallowRef } from "vue";
 
 import config from "../config/providers.json";
-import defaultPrompt from "../prompts/default.json";
-import applePrompt from "../prompts/apple.json";
 import { createOllamaProvider } from "../ai/ollama.ts";
 import { createOpenAIProvider } from "../ai/openai.ts";
 import { classify } from "../ai/tiers.ts";
-import type { PromptFile } from "../ai/prompt.ts";
 import type { AdviceRule, ModelInfo, Provider, ProviderConfig, Tier } from "../ai/types.ts";
-
-const PROMPTS: Record<string, PromptFile> = {
-  default: defaultPrompt as PromptFile,
-  apple: applePrompt as PromptFile,
-};
 
 export type Entry = {
   providerId: string;
@@ -107,12 +99,6 @@ export const useProviders = createGlobalState(() => {
     loading.value = false;
   }
 
-  function promptFor(providerId: string, modelId: string): PromptFile {
-    const c = configs.find((x) => x.id === providerId);
-    const override = c?.promptOverrides?.find((o) => new RegExp(o.match).test(modelId));
-    return PROMPTS[override?.prompt ?? c?.prompt ?? "default"] ?? PROMPTS.default;
-  }
-
   const anyOnline = computed(() => Object.values(online.value).some(Boolean));
 
   return {
@@ -123,7 +109,6 @@ export const useProviders = createGlobalState(() => {
     anyOnline,
     loading,
     refresh,
-    promptFor,
     recordLatency,
   };
 });

@@ -63,8 +63,6 @@ export type ProviderConfig = {
   label: string;
   baseUrl: string;
   api: "ollama" | "openai";
-  prompt: string;
-  promptOverrides?: { match: string; prompt: string }[];
 };
 
 export type AdviceRule = {

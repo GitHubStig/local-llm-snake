@@ -8,6 +8,7 @@ import { DEFAULT_RULES, type Direction, type GameState } from "../game/types.ts"
 import type { Controller } from "../game/controller.ts";
 import { ModelController } from "../ai/controller.ts";
 import { DEFAULT_SETTINGS, type PromptSettings } from "../ai/prompt.ts";
+import { LEVEL_PROMPTS } from "../prompts/index.ts";
 import { useProviders } from "./useProviders.ts";
 
 const randomSeed = () => Math.floor(Math.random() * 100000);
@@ -45,7 +46,8 @@ export const useGame = createGlobalState(() => {
     return new ModelController({
       provider,
       model: modelId,
-      prompt: providers.promptFor(providerId, modelId),
+      // A level is a prompt file (ADR-0008).
+      prompt: LEVEL_PROMPTS[settings.value.level],
       settings: settings.value,
       maxTokens: 48,
       getState: () => state.value,
