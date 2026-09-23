@@ -55,7 +55,9 @@ const outcome = computed(() => {
   <!-- One viewport-tall frame. It only scrolls when the content genuinely
        cannot fit: a zoomed-in page, or a very short window. -->
   <div class="h-dvh overflow-auto">
-    <div class="mx-auto flex h-full min-h-[34rem] max-w-6xl flex-col gap-4 px-4 py-4">
+    <div
+      class="mx-auto flex min-h-full max-w-6xl flex-col gap-4 px-4 py-4 lg:h-full lg:min-h-[34rem]"
+    >
       <header class="flex shrink-0 items-center justify-between gap-4">
         <div>
           <h1 class="text-lg font-semibold">Snake playground</h1>
@@ -64,17 +66,18 @@ const outcome = computed(() => {
         <ThemeToggle />
       </header>
 
-      <!-- Stacked, the board takes the flexible row and the panel sizes to its
-           content; side by side, they share one row. -->
-      <div
-        class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-1"
-      >
+      <!-- Stacked below lg, the page scrolls; side by side, everything fits
+           one screen. -->
+      <div class="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-1">
         <section class="flex min-h-0 flex-col gap-3">
           <ControlBar class="shrink-0" />
 
           <!-- min-h-0 lets this shrink below its content, which is what
                allows the board to size itself rather than overflow. -->
-          <div class="min-h-0 flex-1">
+          <!-- Stacked, the board keeps a usable size and the page scrolls
+               beneath it; squeezing it to fit left it a few hundred pixels
+               wide. Side by side, it fills whatever height is left. -->
+          <div class="h-[min(calc(100vw_-_2rem),36rem)] lg:h-auto lg:min-h-0 lg:flex-1">
             <GameBoard :state="state">
               <template #overlay>
                 <div
