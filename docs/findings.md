@@ -146,6 +146,12 @@ The turn-on sits between 314 and 614 tokens, consistent with a 512-token batch
 boundary. The earlier 50-80x figures were all measured with multi-thousand
 token prefixes and do **not** generalise to short prompts.
 
+*Corrected 2026-09-23:* this threshold was measured on `gemma4:e2b` alone, and
+does not hold for every model. Playing under the parity prompt,
+`muse-glimmer:30b` reported **252 of 424 prompt tokens cached** — essentially
+the static system prompt, reused as intended, well below 512 tokens. The
+threshold appears to be model-specific.
+
 **Consequence for this project:** the current system prompt is ~340 tokens and
 the whole request ~367, so it falls just below the threshold and gets no reuse
 at all — confirmed live, `cached 0/367` on every tick of a real game. Crossing

@@ -59,7 +59,9 @@ Worked through at Normal speed (*T* = 400 ms):
 *L* is not known in advance, so the runner estimates it from the latencies it
 has itself measured for the current controller, over its last 25 answers. A
 new controller starts with none, so its first requests use *k* = 0 until its
-own answers calibrate the estimate. (The dropdown's persisted latencies,
+own answers calibrate the estimate. A new *game* with the same controller
+inherits the previous game's latencies, so only the first game of a session
+starts unprojected. (The dropdown's persisted latencies,
 ADR-0007, were considered as a warm start and not used: they include moves
 played with different settings, such as with `why` on.)
 
@@ -145,9 +147,11 @@ unchanged; only which board it describes moves.
 — timeouts fell from 108 to 15 and 76% of answers landed exactly on their
 tick — but survival did not improve. A model answering in 1.1 s at 400 ms a
 tick gets one decision roughly every three ticks, and projection makes each
-decision correct without making them more frequent. The claim below, that a
-slow model's share would rise, was not supported: share *fell*, because ticks
-spent holding a planned answer are counted as continue-straight.
+decision correct without making them more frequent. Share at first appeared to
+*fall*, because ticks spent holding a planned answer were counted as misses;
+once they were given their own category and share was measured over due
+decisions only, it rose — from 46% to 92% for qwen3.8:27b at Slow — which is
+also where survival clearly improved.
 
 ## Measuring it
 
