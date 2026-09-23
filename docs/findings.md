@@ -407,22 +407,93 @@ either way, so asking for an explanation can never change the move. It costs
 rationalisation written after the fact, which is exactly what an observation
 panel should show — honestly labelled.
 
-## 13. JEV parity: not yet measured
+## 13. JEV parity, measured
 
-The single parity prompt (ADR-0012) was built on 2026-09-22 while the machine
-had no capacity to spare for model runs, so nothing here has been measured.
-The questions it most needs answering, in order:
+Measured 2026-09-23 with `scripts/eval-prompt.ts`: five seeds, 200-tick cap —
+long enough for the snake to grow and the reachability facts to carry
+information, which at 60 ticks they do not. Moves are played synchronously,
+with no clock, so this measures judgement and not real-time play.
 
-1. Does parity play better than the best ladder level — level 2, which
-   survived every game with 25 food across five?
-2. Does the `Heading:` line still act as an attractor now that each option
-   states its own turn and facts? At level 0, with nothing else to go on, it
-   drove the snake into the wall on every seed.
-3. Does sending the grid *and* the head and food positions still hurt, now
-   that the model is not reading the board to find its options?
+Two new counters test whether a model acts on the facts it is handed: how often
+it walks into a move marked `DEAD END` when an escapable one existed, and how
+often it passes up food it could safely eat. **Differs** is how often it chose
+something other than a four-line code reference picking the obvious move from
+the same facts — avoid dead ends, eat if possible, otherwise close on the food.
 
-`scripts/eval-prompt.ts` plays the parity prompt and reports forced moves
-separately.
+| | ticks survived | food | longest | alive | dead end | passed food | differs | median | deaths |
+|---|---|---|---|---|---|---|---|---|---|
+| **code reference** | 200 ×5 | **106** | 27 | 5/5 | 0% | 0% | — | — | — |
+| **qwen3.8:27b** | 200 ×5 | **111** | 27 | **5/5** | 0% | 0% | 22% | 1110 ms | none |
+| gemma4:e2b | 176, 130, 130, 130, 152 | 4 | 6 | 0/5 | 0% | 0% | 98% | 232 ms | 5 starved |
+| llama3:latest | 141, 174, 200, 200, 130 | 7 | 7 | 2/5 | 0% | 0% | 74% | 318 ms | 3 starved |
+| Apple Foundation Models | 141, 130, 130, 130, 130 | 1 | 4 | 0/5 | 0% | 0% | 59% | 545 ms | 5 starved |
+| *gemma4:e2b, ladder level 2* | 200, 200, 119, 142, 196 | *60* | — | 2/5 | — | — | — | 281 ms | — |
+
+### The models are not alike: one reads the facts, one reads the list order
+
+ADR-0012 predicted that with code doing the analysis, models would look alike
+on accuracy. The opposite happened. Diagnosed over two games each:
+
+| | gemma4:e2b | qwen3.8:27b |
+|---|---|---|
+| went straight | 99 of 111 | 49 of 119 |
+| picked the option listed last | 105 of 111 | spread evenly |
+| picked the option closest to the food | 50% | **100%** |
+
+- **gemma4:e2b chooses by position, not by the facts.** It picks the
+  last-listed option 95% of the time. Options are listed north, east, south,
+  west, so that is usually west; once heading west, straight *is* west, and the
+  habit reinforces itself. It drifts, never crashes, and starves. At 50% on
+  closest-to-food with two or three options, it is at chance.
+- **qwen3.8:27b reads every fact.** It always took the option closest to the
+  food, never entered a dead end, and **ate more than the code reference** —
+  111 against 106 — because the 22% of moves where it disagreed were sometimes
+  better than the greedy rule.
+- **Nobody walked into a flagged dead end, and nobody passed up adjacent food.**
+  The flags are acted on when they appear; the small models' failure is in the
+  ordinary choice between options that are all safe and all food-less.
+
+### Apple's on-device model chooses close to at random
+
+Run through `fm serve` the same day. It shows no single bias of the kind gemma
+does — turns and list positions are both spread — yet it took the option
+closest to the food exactly 50% of the time, which is chance. It is choosing
+among the safe options almost at random. The one pattern is a lean towards
+north and south, 80 of 115 moves, so it zigzags up and down the board until it
+starves.
+
+Its 59% disagreement with the code reference looks healthier than gemma's 98%,
+but it is what random choice among two or three options produces. gemma
+disagrees more because its bias is systematic; Apple's model disagrees less
+because it has none.
+
+So parity sorts the four models into three kinds: one that **reads the facts**
+(qwen3.8:27b), one that **reads the list order** (gemma4:e2b), and two that
+**do neither** (llama3, Apple). None of the three failing models ever crashed;
+all of them starved.
+
+### The three questions from before
+
+1. **Does parity beat the best ladder level?** Depends entirely on the model.
+   For gemma4:e2b, no: level 2 ate 60 at the same cap, parity 4. Level 2 stated
+   where the food lay in direction words, which the small model can act on;
+   parity gives a distance per option, which it would have to compare. For
+   qwen3.8:27b, parity plays about as well as it is possible to play.
+2. **Does the `Heading:` line still act as an attractor?** No. Removing it left
+   every game *identical*, to the tick and the food. With a fact line per
+   option, the heading no longer steers anything.
+3. **Does sending the grid and the coordinates together still hurt?** Not
+   measurably. Removing the head and food lines took gemma from 4 food to 8,
+   which at five seeds is within noise.
+
+### Judgement and latency now point in opposite directions
+
+The model that plays best is the slowest: 1110 ms median against 232 ms. At
+Normal speed a tick is 400 ms, so qwen3.8:27b's answers would routinely arrive
+around three ticks late and, beyond the two-tick staleness limit, be thrown
+away. These games were played without a clock, so its excellent judgement is
+real but has never been tested in real time. That is the case ADR-0013's
+projection exists for.
 
 ## 14. Runtime matrix
 

@@ -1,67 +1,165 @@
 /**
- * Plays seeded games with the prompt and reports survival, food, forced moves
- * and latency — so prompt changes are judged by games, not by eye. Needs a
- * running Ollama.
+ * Plays seeded games with the prompt and reports how models act on the facts
+ * they are handed — judged by games, not by eye. Needs a running Ollama.
  *
- * Usage: node scripts/eval-prompt.ts [model] [seeds] [maxTicks] [why]
- *   why: on | off | both (default off; with why after the answer, both give
- *   identical moves and differ only in latency)
+ * Usage: node scripts/eval-prompt.ts [models] [seeds] [maxTicks] [why]
+ *   models: comma list of Ollama models, `fm` for Apple Foundation Models via
+ *           `fm serve`, and/or `code` — a reference that picks the obvious move
+ *           from the same facts, with no model at all
+ *   why:    on | off (default off; with why after the answer, moves are
+ *           identical either way and only latency differs)
+ *
+ * DROP=heading,head,food strips those lines from the user template, to test
+ * whether they help or hurt now that each option comes with facts.
  */
 import { readFileSync } from "node:fs";
 
+import { analyze, type MoveFacts } from "../src/game/analysis.ts";
 import { createGame, step, toView } from "../src/game/engine.ts";
-import type { GameState } from "../src/game/types.ts";
+import type { Direction, GameState } from "../src/game/types.ts";
 import { createOllamaProvider } from "../src/ai/ollama.ts";
+import { createOpenAIProvider } from "../src/ai/openai.ts";
 import { ModelController } from "../src/ai/controller.ts";
 import type { PromptFile } from "../src/ai/prompt.ts";
 
-const model = process.argv[2] ?? "gemma4:e2b";
+const models = (process.argv[2] ?? "gemma4:e2b").split(",");
 const seedCount = Number(process.argv[3] ?? 5);
-const maxTicks = Number(process.argv[4] ?? 60);
-const whyModes = { on: [true], off: [false], both: [false, true] }[process.argv[5] ?? "off"] ?? [
-  false,
-];
+const maxTicks = Number(process.argv[4] ?? 200);
+const includeWhy = process.argv[5] === "on";
 
-const prompt = JSON.parse(readFileSync("src/prompts/jev-parity.json", "utf8")) as PromptFile;
-const provider = createOllamaProvider("http://localhost:11434");
-await provider.warm(model);
+const LINES: Record<string, RegExp> = {
+  heading: /^Heading: \{\{heading\}\}\n/m,
+  head: /^Head: \{\{head\}\}\n/m,
+  food: /^Food: \{\{food\}\}\n/m,
+};
+const drop = (process.env.DROP ?? "").split(",").filter(Boolean);
 
-async function play(includeWhy: boolean, seed: number) {
-  let state: GameState = createGame(seed);
-  const controller = new ModelController({
-    provider,
-    model,
-    prompt,
-    settings: { includeWhy },
-    maxTokens: includeWhy ? 64 : 16,
-    getState: () => state,
-  });
-  const latencies: number[] = [];
-  let forced = 0;
-  while (state.outcome === null && state.tick < maxTicks) {
-    const decision = await controller.decide(toView(state), new AbortController().signal);
-    if (decision.forced) forced++;
-    else latencies.push((decision.meta as { wallMs: number }).wallMs);
-    state = step(state, decision.direction);
-  }
-  return { state, latencies, forced };
+const base = JSON.parse(readFileSync("src/prompts/jev-parity.json", "utf8")) as PromptFile;
+const prompt: PromptFile = {
+  ...base,
+  user: drop.reduce((user, line) => user.replace(LINES[line], ""), base.user),
+};
+
+const ollama = createOllamaProvider("http://localhost:11434");
+// Called from Node, not a browser, so no Sec-Fetch-Site header: fm serve
+// accepts it directly and the dev-server proxy is not needed.
+const fm = createOpenAIProvider("http://127.0.0.1:1976", "apple", "Apple Foundation Models");
+
+/** `fm` is Apple's single on-device model; anything else is an Ollama model. */
+const route = (model: string) =>
+  model === "fm" ? { provider: fm, id: "system" } : { provider: ollama, id: model };
+
+/** The obvious choice from the facts alone: the yardstick a model is measured against. */
+function codeChoice(facts: MoveFacts[]): Direction {
+  const escapable = facts.filter((f) => !f.deadEnd);
+  const pool = escapable.length ? escapable : facts;
+  return [...pool].sort(
+    (a, b) =>
+      Number(b.eats) - Number(a.eats) ||
+      (a.foodDistance ?? 0) - (b.foodDistance ?? 0) ||
+      b.reachable - a.reachable,
+  )[0].direction;
 }
 
-console.log(`model ${model}, ${seedCount} seeds, cap ${maxTicks} ticks\n`);
-console.log("why   ticks survived          food total  alive  forced  median");
-for (const includeWhy of whyModes) {
+type Tally = {
+  choices: number;
+  /** Picked a move marked DEAD END while an escapable option existed. */
+  intoDeadEnd: number;
+  /** Passed up food it could have eaten without walking into a dead end. */
+  passedFood: number;
+  /** Differed from the code reference's choice. */
+  disagreed: number;
+};
+
+async function play(model: string, seed: number) {
+  let state: GameState = createGame(seed);
+  const controller =
+    model === "code"
+      ? null
+      : new ModelController({
+          provider: route(model).provider,
+          model: route(model).id,
+          prompt,
+          settings: { includeWhy },
+          maxTokens: includeWhy ? 64 : 16,
+          getState: () => state,
+        });
+  const latencies: number[] = [];
+  const tally: Tally = { choices: 0, intoDeadEnd: 0, passedFood: 0, disagreed: 0 };
+  let forced = 0;
+
+  while (state.outcome === null && state.tick < maxTicks) {
+    const facts = analyze(state);
+    let direction: Direction;
+
+    if (facts.length < 2) {
+      direction = facts[0]?.direction ?? state.heading;
+      forced++;
+    } else {
+      if (controller) {
+        const decision = await controller.decide(toView(state), new AbortController().signal);
+        direction = decision.direction;
+        latencies.push((decision.meta as { wallMs: number }).wallMs);
+      } else {
+        direction = codeChoice(facts);
+      }
+      const chosen = facts.find((f) => f.direction === direction)!;
+      const escapable = facts.some((f) => !f.deadEnd);
+      const edible = facts.some((f) => f.eats && !f.deadEnd);
+      tally.choices++;
+      if (chosen.deadEnd && escapable) tally.intoDeadEnd++;
+      if (edible && !chosen.eats) tally.passedFood++;
+      if (direction !== codeChoice(facts)) tally.disagreed++;
+    }
+    state = step(state, direction);
+  }
+  return { state, latencies, forced, tally };
+}
+
+const pct = (n: number, d: number) => (d ? `${Math.round((100 * n) / d)}%` : "--");
+
+console.log(
+  `${seedCount} seeds, cap ${maxTicks} ticks, why ${includeWhy ? "on" : "off"}` +
+    (drop.length ? `, lines removed: ${drop.join(", ")}` : "") +
+    "\n",
+);
+console.log(
+  "model                 ticks survived              food  len  alive  " +
+    "dead-end  passed-food  differs  median  deaths",
+);
+
+for (const model of models) {
+  if (model !== "code") await route(model).provider.warm(route(model).id);
   const runs = [];
-  for (let s = 0; s < seedCount; s++) runs.push(await play(includeWhy, 1000 + s * 7919));
+  for (let s = 0; s < seedCount; s++) runs.push(await play(model, 1000 + s * 7919));
+
+  const sum = (f: (r: (typeof runs)[number]) => number) => runs.reduce((n, r) => n + f(r), 0);
+  const choices = sum((r) => r.tally.choices);
   const all = runs.flatMap((r) => r.latencies).sort((a, b) => a - b);
+
   console.log(
-    `${includeWhy ? "on " : "off"}   ` +
-      `${runs
-        .map((r) => r.state.tick)
-        .join(",")
-        .padEnd(22)}  ` +
-      `${String(runs.reduce((n, r) => n + r.state.foodEaten, 0)).padStart(5)}      ` +
+    `${model.padEnd(20)}  ${runs
+      .map((r) => r.state.tick)
+      .join(",")
+      .padEnd(26)}  ` +
+      `${String(sum((r) => r.state.foodEaten)).padStart(4)}  ` +
+      `${String(Math.max(...runs.map((r) => r.state.snake.length))).padStart(3)}  ` +
       `${runs.filter((r) => r.state.outcome === null).length}/${seedCount}    ` +
-      `${String(runs.reduce((n, r) => n + r.forced, 0)).padStart(5)}   ` +
-      `${all[Math.floor(all.length / 2)] ?? "--"}ms`,
+      `${pct(
+        sum((r) => r.tally.intoDeadEnd),
+        choices,
+      ).padStart(6)}  ` +
+      `${pct(
+        sum((r) => r.tally.passedFood),
+        choices,
+      ).padStart(9)}  ` +
+      `${pct(
+        sum((r) => r.tally.disagreed),
+        choices,
+      ).padStart(7)}  ` +
+      `${(all.length ? `${all[Math.floor(all.length / 2)]}ms` : "--").padEnd(6)}  ` +
+      (["crashed", "starved"] as const)
+        .map((o) => `${runs.filter((r) => r.state.outcome === o).length} ${o}`)
+        .join(", "),
   );
 }

@@ -79,13 +79,18 @@ local models. Deferred until it can be verified.
 
 ## Consequences
 
-- **Nothing here has been measured.** It was written while the machine had no
-  capacity for model runs. The first things to test: whether parity plays
-  better than the best ladder level, and whether the heading line and the
-  second board description still hurt now that every option comes with facts.
-- **Models will look more alike on accuracy**, since code does the analysis.
-  Differences should show mainly in latency and in how reliably a model acts on
-  facts it has been handed — which is the comparison that matters against JEV.
+- **Measured 2026-09-23, and the models are *not* alike.**
+  ([findings.md](../findings.md) §13.) This ADR originally predicted that with
+  code doing the analysis, models would look alike on accuracy and differ
+  mainly in speed. They differ enormously. qwen3.8:27b reads every fact, never
+  dies, and eats more than a code reference choosing from the same facts.
+  gemma4:e2b ignores the facts and picks the last-listed option 95% of the time,
+  drifting until it starves — 4 food in five games, against 60 under the old
+  level 2. Parity is a fair benchmark, and what it reveals is whether a model
+  can act on facts at all.
+- **The heading line and the doubled board description are harmless here.**
+  Removing the heading left every game identical; removing the head and food
+  lines made no measurable difference.
 - **"Legal but fatal" becomes near-impossible.** A fatal move is never offered,
   so it can only arise from an answer that aged in flight onto a board where it
   had become fatal. It stays a real signal, but a much rarer one.
