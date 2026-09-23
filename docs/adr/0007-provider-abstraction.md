@@ -35,11 +35,17 @@ interface Provider {
 | Parse | `message.content` -> `JSON.parse` | `choices[0].message.content` -> `JSON.parse` |
 | Health | `GET /api/version` | `GET /health` |
 
-**Default model: `gemma4:e2b`, always sent `"think": false`.** Under the
-coordinate prompt (ADR-0008) it scores 9/10 at 233ms, matching
-`qwen3.8:27b-mlx`'s 9/10 at 638ms for a third of the latency. Omitting `think`
-costs 83x — 8282ms against 101ms — which would blow any tick deadline by an
-order of magnitude.
+**Default model: `llama3:latest`**, named by `defaultModel` in
+`providers.json` and listed first in the driver dropdown. Every request sends
+`"think": false`: omitting it costs 83x on models that think by default.
+
+*Amended 2026-09-23.* The default was `gemma4:e2b`, chosen when it led at the
+old level 0. Under the parity prompt (ADR-0012) it starved in every game, and
+it has since been removed from the machine. `llama3:latest` was chosen instead.
+Its old warning — 2/10 on unambiguous boards, silent truncation above 8k
+tokens — was dropped: the 2/10 was measured on a prompt since replaced, and a
+parity request is about 430 tokens, far below where it truncates. Under parity
+it is weak but alive: 7 food in five games, never crashed ([findings.md](../findings.md) §13).
 
 **Responses are read from `message.content`, falling back to
 `message.thinking` when content is empty.** Three lines, harmless for

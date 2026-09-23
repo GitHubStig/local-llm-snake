@@ -4,7 +4,8 @@
       "id": "ollama",
       "label": "Ollama",
       "baseUrl": "http://localhost:11434",
-      "api": "ollama"
+      "api": "ollama",
+      "defaultModel": "llama3:latest"
     },
     {
       "id": "apple",
@@ -28,11 +29,6 @@
       "match": ":text$",
       "tier": "avoid",
       "reason": "Base model, no chat template"
-    },
-    {
-      "match": "^llama3:",
-      "tier": "avoid",
-      "reason": "Measured 2/10 on unambiguous boards; truncates silently above 8k"
     },
     {
       "match": "^qwen3-vl:",

@@ -12,6 +12,7 @@ export type Entry = {
   model: ModelInfo;
   tier: Tier;
   reason: string | null;
+  isDefault: boolean;
   /** Median wall time once the model has actually run; beats any heuristic. */
   measuredMs: number | null;
 };
@@ -79,6 +80,7 @@ export const useProviders = createGlobalState(() => {
             model,
             tier,
             reason,
+            isDefault: model.id === c.defaultModel,
             measuredMs: samples.length ? Math.round(median(samples)) : null,
           });
         }
@@ -87,10 +89,12 @@ export const useProviders = createGlobalState(() => {
       }
     }
 
-    // Usable first, then by measured speed; nothing is ever hidden or blocked.
+    // The default first, then usable, then by measured speed. Nothing is ever
+    // hidden or blocked.
     const order: Record<Tier, number> = { ok: 0, slow: 1, avoid: 2, unusable: 3 };
     found.sort(
       (a, b) =>
+        Number(b.isDefault) - Number(a.isDefault) ||
         order[a.tier] - order[b.tier] ||
         (a.measuredMs ?? Infinity) - (b.measuredMs ?? Infinity) ||
         a.model.id.localeCompare(b.model.id),

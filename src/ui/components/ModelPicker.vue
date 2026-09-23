@@ -20,7 +20,11 @@ const TIER_LABEL: Record<string, string> = {
 
 /** Measured latency replaces the heuristic once a model has actually run. */
 function describe(entry: Entry) {
-  const bits = [entry.model.parameterSize, TIER_LABEL[entry.tier] || null].filter(Boolean);
+  const bits = [
+    entry.isDefault ? "default" : null,
+    entry.model.parameterSize,
+    TIER_LABEL[entry.tier] || null,
+  ].filter(Boolean);
   if (entry.measuredMs !== null) bits.push(`~${entry.measuredMs}ms`);
   return bits.length ? ` (${bits.join(" · ")})` : "";
 }

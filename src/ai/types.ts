@@ -63,6 +63,8 @@ export type ProviderConfig = {
   label: string;
   baseUrl: string;
   api: "ollama" | "openai";
+  /** Listed first in the driver dropdown and used by the scripts. */
+  defaultModel?: string;
 };
 
 export type AdviceRule = {
