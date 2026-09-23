@@ -34,7 +34,13 @@ export const useGame = createGlobalState(() => {
   const selected = ref<{ providerId: string; modelId: string } | null>(null);
   const settings = ref<PromptSettings>({ ...DEFAULT_SETTINGS });
   const inFlightSince = ref<number | null>(null);
-  const lastMeta = shallowRef<Record<string, unknown> | null>(null);
+  /**
+   * The model's most recent decision, kept until it makes another. Most ticks
+   * under projection are straight-as-planned or forced, and showing the
+   * decision only on the tick it was made left the panel blank most of the
+   * time — and jumping as it filled and emptied.
+   */
+  const lastDecision = shallowRef<MoveRecord | null>(null);
 
   const providers = useProviders();
 
@@ -72,8 +78,7 @@ export const useGame = createGlobalState(() => {
       onTick: (next, move) => {
         state.value = next;
         lastMove.value = move;
-        const meta = (move.meta ?? null) as Record<string, unknown> | null;
-        if (meta) lastMeta.value = meta;
+        if (move.decidedBy === "controller") lastDecision.value = move;
         if (move.latencyMs !== null && selected.value && driver.value === "model") {
           providers.recordLatency(
             selected.value.providerId,
@@ -98,6 +103,7 @@ export const useGame = createGlobalState(() => {
     runner = build(measured);
     state.value = runner.state;
     lastMove.value = null;
+    lastDecision.value = null;
     running.value = false;
   }
 
@@ -184,7 +190,7 @@ export const useGame = createGlobalState(() => {
     speed,
     state,
     lastMove,
-    lastMeta,
+    lastDecision,
     running,
     driver,
     selected,

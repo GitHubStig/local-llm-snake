@@ -5,7 +5,7 @@ import { useGame } from "../useGame.ts";
 
 const {
   lastMove,
-  lastMeta,
+  lastDecision,
   inFlightSince,
   failures,
   driver,
@@ -28,7 +28,9 @@ const status = computed(() => {
     : { label: "Waiting", waiting: true };
 });
 
-const why = computed(() => (lastMeta.value?.why as string | null) ?? null);
+/** The model's last decision's attachments, which stay put between decisions. */
+const meta = computed(() => lastDecision.value?.meta ?? null);
+const why = computed(() => (meta.value?.why as string | null) ?? null);
 
 type SentRequest = {
   model: string;
@@ -37,10 +39,21 @@ type SentRequest = {
   schema: Record<string, unknown>;
   maxTokens?: number;
 };
-const request = computed(() => (lastMeta.value?.request as SentRequest | undefined) ?? null);
-const raw = computed(() => (lastMeta.value?.raw as string | undefined) ?? null);
-const truncated = computed(() => lastMeta.value?.truncated === true);
-const source = computed(() => lastMeta.value?.source as string | undefined);
+const request = computed(() => (meta.value?.request as SentRequest | undefined) ?? null);
+const raw = computed(() => (meta.value?.raw as string | undefined) ?? null);
+
+/** Rare warnings, joined into one line of fixed height so they never shift anything. */
+const notes = computed(() =>
+  [
+    meta.value?.truncated === true && "evaluated fewer prompt tokens than were sent: it truncated",
+    meta.value?.source === "thinking" && "answer arrived in message.thinking, content empty",
+  ]
+    .filter(Boolean)
+    .join(" · "),
+);
+
+const dash = "—";
+const ms = (v: unknown) => (typeof v === "number" ? `${v} ms` : dash);
 
 const FAILURE_LABEL: Record<string, string> = {
   timedOut: "Timed out",
@@ -64,33 +77,37 @@ const arrival = (lateness: number) =>
 
 <template>
   <div class="flex min-h-0 flex-col gap-3">
-    <div class="flex shrink-0 flex-col items-end gap-1 text-[11px] text-muted">
-      <label class="flex items-center gap-1.5">
+    <!-- Left-aligned, each box beside the first line of its label, so the boxes
+         line up however the labels wrap. -->
+    <div class="flex shrink-0 flex-col gap-1.5 text-[11px] leading-4 text-muted">
+      <label class="flex items-start gap-1.5">
         <input
           type="checkbox"
+          class="mt-0.5 shrink-0"
           :checked="project"
           @change="
             setProjection(($event.target as HTMLInputElement).checked);
             releaseFocus($event);
           "
         />
-        Plan ahead for the model's latency
+        <span>Plan ahead for the model's latency</span>
       </label>
-      <label class="flex items-center gap-1.5">
+      <label class="flex items-start gap-1.5">
         <input
           type="checkbox"
+          class="mt-0.5 shrink-0"
           :checked="settings.includeWhy"
           @change="
             setSettings({ includeWhy: ($event.target as HTMLInputElement).checked });
             releaseFocus($event);
           "
         />
-        Ask why (after the answer, so it never changes the move)
+        <span>Ask why — after the answer, so it never changes the move</span>
       </label>
     </div>
 
     <div class="flex shrink-0 items-center justify-between gap-2">
-      <h2 class="text-sm font-medium">This step's decision</h2>
+      <h2 class="text-sm font-medium">Decisions</h2>
       <span
         class="inline-flex h-6 w-28 items-center justify-center gap-1.5 rounded-full border text-[11px] transition-colors duration-150"
         :class="
@@ -106,54 +123,70 @@ const arrival = (lateness: number) =>
       </span>
     </div>
 
+    <!-- Every row below is always rendered; only values change. Rows that came
+         and went with each tick made everything under them jump. -->
     <div class="min-h-0 flex-1 overflow-auto">
-      <p v-if="!lastMove" class="mt-2 text-sm text-muted">
-        Nothing yet. Press play, or take a step.
+      <dl class="grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+        <dt class="text-muted">This tick</dt>
+        <dd class="truncate font-mono">{{ lastMove?.direction ?? dash }}</dd>
+        <dt class="text-muted">Decided by</dt>
+        <dd class="truncate">{{ lastMove ? DECIDED_BY[lastMove.decidedBy] : dash }}</dd>
+      </dl>
+
+      <h3 class="mt-4 text-xs font-medium text-muted">The model's last decision</h3>
+      <dl class="mt-1.5 grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+        <dt class="text-muted">Direction</dt>
+        <dd class="truncate font-mono">{{ lastDecision?.direction ?? dash }}</dd>
+        <dt class="text-muted">Latency</dt>
+        <dd class="truncate font-mono tabular-nums">{{ ms(lastDecision?.latencyMs) }}</dd>
+        <dt class="text-muted">of which model load</dt>
+        <dd class="truncate font-mono tabular-nums">{{ ms(meta?.loadMs) }}</dd>
+        <dt class="text-muted">Planned ahead</dt>
+        <dd class="truncate font-mono tabular-nums">
+          {{
+            lastDecision
+              ? lastDecision.horizon === 0
+                ? "no"
+                : `${lastDecision.horizon} ticks`
+              : dash
+          }}
+        </dd>
+        <dt class="text-muted">Arrived</dt>
+        <dd class="truncate font-mono tabular-nums">
+          {{ lastDecision ? arrival(lastDecision.lateness) : dash }}
+        </dd>
+        <dt class="text-muted">Prompt tokens</dt>
+        <dd class="truncate font-mono tabular-nums">
+          <template v-if="typeof meta?.promptTokens === 'number'">
+            {{ meta.promptTokens }}
+            <span class="text-muted">({{ meta.cachedPromptTokens ?? 0 }} cached)</span>
+          </template>
+          <template v-else>{{ dash }}</template>
+        </dd>
+      </dl>
+
+      <!-- Fixed at three lines: reasons vary in length, and a box that grew and
+           shrank with them moved everything below. -->
+      <p
+        class="mt-3 line-clamp-3 h-[4.625rem] overflow-hidden rounded-md border border-line px-2 py-1.5 text-sm"
+        :class="why ? '' : 'text-muted'"
+        :title="why ?? undefined"
+      >
+        {{ why ?? (settings.includeWhy ? "No reason yet." : "Not asked for a reason.") }}
       </p>
+      <p class="mt-1 h-4 truncate text-xs text-food" :title="notes || undefined">{{ notes }}</p>
 
-      <template v-else>
-        <dl class="mt-1 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-          <dt class="text-muted">Direction</dt>
-          <dd class="font-mono">{{ lastMove.direction }}</dd>
-          <dt class="text-muted">Decided by</dt>
-          <dd class="font-mono">
-            {{ DECIDED_BY[lastMove.decidedBy] }}
+      <h3 class="mt-4 text-xs font-medium text-muted">Why moves were not decided</h3>
+      <dl class="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+        <template v-for="(count, kind) in failures" :key="kind">
+          <dt class="text-muted">{{ FAILURE_LABEL[kind] ?? kind }}</dt>
+          <dd class="font-mono tabular-nums" :class="count > 0 ? 'text-text' : 'text-muted'">
+            {{ count }}
           </dd>
-          <dt class="text-muted">Latency</dt>
-          <dd class="font-mono tabular-nums">
-            {{ lastMove.latencyMs === null ? "--" : `${lastMove.latencyMs} ms` }}
-          </dd>
-          <dt v-if="lastMeta?.loadMs" class="text-muted">of which model load</dt>
-          <dd v-if="lastMeta?.loadMs" class="font-mono tabular-nums">{{ lastMeta.loadMs }} ms</dd>
-          <template v-if="lastMove.decidedBy === 'controller'">
-            <dt class="text-muted">Planned ahead</dt>
-            <dd class="font-mono tabular-nums">
-              {{ lastMove.horizon === 0 ? "no" : `${lastMove.horizon} ticks` }}
-            </dd>
-            <dt class="text-muted">Arrived</dt>
-            <dd class="font-mono tabular-nums">{{ arrival(lastMove.lateness) }}</dd>
-          </template>
-          <template v-if="lastMeta?.promptTokens">
-            <dt class="text-muted">Prompt tokens</dt>
-            <dd class="font-mono tabular-nums">
-              {{ lastMeta.promptTokens }}
-              <span class="text-muted">({{ lastMeta.cachedPromptTokens }} cached)</span>
-            </dd>
-          </template>
-        </dl>
+        </template>
+      </dl>
 
-        <p v-if="why" class="mt-3 rounded-md border border-line px-2 py-1.5 text-sm">
-          {{ why }}
-        </p>
-
-        <p v-if="truncated" class="mt-2 text-xs text-food">
-          The model evaluated fewer prompt tokens than were sent — it truncated silently.
-        </p>
-        <p v-if="source === 'thinking'" class="mt-2 text-xs text-food">
-          Answer arrived in <code>message.thinking</code>; this model returns empty content.
-        </p>
-      </template>
-
+      <!-- Last, because it is the one block whose height varies. -->
       <details v-if="request" class="group mt-4 rounded-md border border-line">
         <summary
           class="cursor-pointer select-none px-2 py-1.5 text-xs font-medium text-muted hover:text-text"
@@ -187,16 +220,6 @@ const arrival = (lateness: number) =>
           </p>
         </div>
       </details>
-
-      <h3 class="mt-4 text-xs font-medium text-muted">Why moves were not decided</h3>
-      <dl class="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-        <template v-for="(count, kind) in failures" :key="kind">
-          <dt class="text-muted">{{ FAILURE_LABEL[kind] ?? kind }}</dt>
-          <dd class="font-mono tabular-nums" :class="count > 0 ? 'text-text' : 'text-muted'">
-            {{ count }}
-          </dd>
-        </template>
-      </dl>
     </div>
 
     <p class="shrink-0 border-t border-line pt-2 text-xs text-muted">
