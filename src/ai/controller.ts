@@ -1,7 +1,7 @@
 import { analyze } from "../game/analysis.ts";
 import type { Controller, Decision } from "../game/controller.ts";
-import type { Direction, GameView } from "../game/types.ts";
-import { buildSchema, buildUser, type PromptFile, type PromptSettings } from "./prompt.ts";
+import type { GameView } from "../game/types.ts";
+import { buildSchema, buildUser, nameOf, type PromptFile, type PromptSettings } from "./prompt.ts";
 import type { Provider } from "./types.ts";
 
 export type ModelControllerOptions = {
@@ -59,10 +59,14 @@ export class ModelController implements Controller {
       signal,
     });
 
-    const direction = result.value.direction as Direction | undefined;
+    // The model answers in the prompt's words; translate back to the engine's.
+    const answer = result.value.direction;
+    const direction = facts.find(
+      (f) => nameOf(prompt.directionNames, f.direction) === answer,
+    )?.direction;
     // Constrained decoding guarantees shape, never correctness (ADR-0008).
-    if (!direction || !facts.some((f) => f.direction === direction)) {
-      throw new Error(`model returned an unusable direction: ${String(direction)}`);
+    if (!direction) {
+      throw new Error(`model returned an unusable direction: ${String(answer)}`);
     }
 
     return {

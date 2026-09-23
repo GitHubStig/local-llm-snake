@@ -84,6 +84,29 @@ describe("model controller", () => {
     assert.equal(decision.forced, true);
   });
 
+  test("translates an answer in the prompt's words back to the engine's", async () => {
+    // Heading south, a left *turn* is east, but JEV's "left" is west. Heading
+    // north the two coincide, so this must face another way to prove anything.
+    const state: GameState = {
+      ...createGame(1),
+      snake: pts([6, 6], [6, 5], [6, 4]),
+      food: pts([3, 9]),
+      heading: "south",
+    };
+    const fake = fakeProvider("left");
+    const controller = new ModelController({
+      provider: fake.provider,
+      model: "fake",
+      prompt: {
+        ...(shippedPrompt as PromptFile),
+        directionNames: { north: "up", east: "right", south: "down", west: "left" },
+      },
+      settings: { includeWhy: false },
+    });
+    const decision = await controller.decide(toView(state), new AbortController().signal);
+    assert.equal(decision.direction, "west", "'left' is west, not a turn to the left");
+  });
+
   test("rejects a direction it was never offered", async () => {
     const state = { ...createGame(1), snake: pts([6, 0], [6, 1], [6, 2]), food: pts([3, 9]) };
     // North is the wall here, so it is not among the options.

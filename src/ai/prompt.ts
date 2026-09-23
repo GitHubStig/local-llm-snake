@@ -14,7 +14,18 @@ export type PromptFile = {
   user: string;
   schema: Record<string, unknown>;
   options?: Record<string, unknown>;
+  /**
+   * The words the model sees for each direction. The engine keeps its own;
+   * the file owns the vocabulary, so matching another system's labels is a
+   * change here rather than in code. Unnamed directions keep the engine's word.
+   */
+  directionNames?: Partial<Record<Direction, string>>;
 };
+
+export type DirectionNames = PromptFile["directionNames"];
+
+/** The word the model sees for a direction. */
+export const nameOf = (names: DirectionNames, d: Direction): string => names?.[d] ?? d;
 
 export type PromptSettings = {
   includeWhy: boolean;
@@ -38,7 +49,7 @@ export function renderGrid(view: GameView): string {
 }
 
 /** One self-contained line per option, so there is nothing to cross-reference. */
-export function describeOption(f: MoveFacts): string {
+export function describeOption(f: MoveFacts, names?: DirectionNames): string {
   const parts = [
     `the head moves to ${at(f.target)}`,
     f.eats
@@ -53,27 +64,31 @@ export function describeOption(f: MoveFacts): string {
   } else if (f.canReachTail) {
     parts.push("the tail can still be followed out");
   }
-  return `- ${f.direction} (${f.turn}): ${parts.join("; ")}`;
+  return `- ${nameOf(names, f.direction)} (${f.turn}): ${parts.join("; ")}`;
 }
 
 /** Every value the template may use. */
-export function promptValues(view: GameView, facts: readonly MoveFacts[]): Record<string, string> {
+export function promptValues(
+  view: GameView,
+  facts: readonly MoveFacts[],
+  names?: DirectionNames,
+): Record<string, string> {
   const food = view.food[0];
   return {
     board: renderGrid(view),
     head: at(view.snake[0]),
     food: food ? at(food) : "none",
-    heading: view.heading,
+    heading: nameOf(names, view.heading),
     length: String(view.snake.length),
     gridSize: `${view.rules.height} rows by ${view.rules.width} columns`,
     foodAdjacent: facts.some((f) => f.eats) ? "yes" : "no",
-    options: facts.map(describeOption).join("\n"),
+    options: facts.map((f) => describeOption(f, names)).join("\n"),
   };
 }
 
 /** Fill the user template. An unknown placeholder is a typo, so it throws. */
 export function buildUser(file: PromptFile, view: GameView, facts: readonly MoveFacts[]): string {
-  const values = promptValues(view, facts);
+  const values = promptValues(view, facts, file.directionNames);
   return file.user.replace(/\{\{(\w+)\}\}/g, (_, name: string) => {
     if (!(name in values)) throw new Error(`unknown placeholder {{${name}}} in prompt`);
     return values[name];
@@ -95,7 +110,10 @@ export function buildSchema(
 ): Record<string, unknown> {
   const schema = structuredClone(file.schema);
   const properties = schema.properties as Record<string, Record<string, unknown>>;
-  properties.direction = { ...properties.direction, enum: [...options] };
+  properties.direction = {
+    ...properties.direction,
+    enum: options.map((d) => nameOf(file.directionNames, d)),
+  };
 
   // Left optional, the model skipped it under constrained decoding.
   const required = new Set((schema.required as string[] | undefined) ?? []);

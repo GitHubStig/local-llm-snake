@@ -11,6 +11,9 @@
  *
  * DROP=heading,head,food strips those lines from the user template, to test
  * whether they help or hurt now that each option comes with facts.
+ *
+ * LABELS=jev names the directions up, right, down and left, as JEV's own
+ * options are named, instead of the prompt file's names.
  */
 import { readFileSync } from "node:fs";
 
@@ -35,9 +38,13 @@ const LINES: Record<string, RegExp> = {
 const drop = (process.env.DROP ?? "").split(",").filter(Boolean);
 
 const base = JSON.parse(readFileSync("src/prompts/jev-parity.json", "utf8")) as PromptFile;
+const jevLabels = process.env.LABELS === "jev";
 const prompt: PromptFile = {
   ...base,
   user: drop.reduce((user, line) => user.replace(LINES[line], ""), base.user),
+  ...(jevLabels
+    ? { directionNames: { north: "up", east: "right", south: "down", west: "left" } }
+    : {}),
 };
 
 const ollama = createOllamaProvider("http://localhost:11434");
@@ -120,6 +127,7 @@ const pct = (n: number, d: number) => (d ? `${Math.round((100 * n) / d)}%` : "--
 console.log(
   `${seedCount} seeds, cap ${maxTicks} ticks, why ${includeWhy ? "on" : "off"}` +
     (drop.length ? `, lines removed: ${drop.join(", ")}` : "") +
+    (jevLabels ? ", JEV's labels (up/right/down/left)" : "") +
     "\n",
 );
 console.log(

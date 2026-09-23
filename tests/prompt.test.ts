@@ -110,6 +110,34 @@ describe("the shipped prompt", () => {
   });
 });
 
+describe("direction names", () => {
+  /** JEV's own labels. */
+  const jev: PromptFile = {
+    ...shipped,
+    directionNames: { north: "up", east: "right", south: "down", west: "left" },
+  };
+  const state = board();
+  const text = () => buildUser(jev, toView(state), analyze(state));
+
+  test("the model sees the prompt's words, everywhere a direction appears", () => {
+    assert.match(text(), /Heading: up/);
+    assert.match(text(), /^- left \(left turn\): the head moves to row 6, column 5/m);
+    assert.ok(!/north|east|south|west/.test(text()), "no engine words leak through");
+  });
+
+  test("the enum offers the same words the options use", () => {
+    const properties = buildSchema(jev, ["north", "west"], false).properties as Record<
+      string,
+      Record<string, unknown>
+    >;
+    assert.deepEqual(properties.direction.enum, ["up", "left"]);
+  });
+
+  test("without names, the engine's words are used", () => {
+    assert.match(buildUser(shipped, toView(state), analyze(state)), /Heading: north/);
+  });
+});
+
 describe("templates", () => {
   test("an unknown placeholder is a typo, and throws", () => {
     const bad: PromptFile = { ...shipped, user: "{{bored}}" };
