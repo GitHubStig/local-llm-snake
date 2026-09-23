@@ -2,7 +2,13 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
 import { createGame } from "../src/game/engine.ts";
-import { Runner, controllerShare, type Clock } from "../src/game/runner.ts";
+import {
+  Runner,
+  controllerShare,
+  horizonFor,
+  projectStraight,
+  type Clock,
+} from "../src/game/runner.ts";
 import { HumanController } from "../src/game/controllers/human.ts";
 import type { Controller, Decision } from "../src/game/controller.ts";
 import type { Direction, GameView } from "../src/game/types.ts";
@@ -62,19 +68,22 @@ class Deferred implements Controller {
   readonly id = "deferred";
   #pending: ((d: Decision) => void)[] = [];
   calls = 0;
+  /** Every board this controller was sent, to check projection. */
+  views: GameView[] = [];
 
-  decide(): Promise<Decision> {
+  decide(view: GameView): Promise<Decision> {
     this.calls++;
+    this.views.push(view);
     return new Promise<Decision>((resolve) => this.#pending.push(resolve));
   }
   /** Answer the oldest outstanding request. */
-  async answer(direction: Direction) {
-    this.#pending.shift()?.({ direction });
+  async answer(direction: Direction, forced = false) {
+    this.#pending.shift()?.({ direction, forced });
     await flush();
   }
 }
 
-const runner = (controller: Controller, over: Partial<{ stalenessCap: number }> = {}) => {
+const runner = (controller: Controller, over: Partial<{ project: boolean }> = {}) => {
   const clock = new FakeClock();
   const r = new Runner(createGame(1), { seed: 1, controller, clock, ...over });
   return { r, clock };
@@ -104,23 +113,38 @@ describe("runner: deciding a tick", () => {
     assert.equal(controllerShare(r.record), 0);
   });
 
-  test("discards an answer that has aged past the staleness cap", async () => {
+  test("applies a late answer however late, as long as it is still safe", async () => {
     const deferred = new Deferred();
-    const { r } = runner(deferred, { stalenessCap: 1 });
+    const { r } = runner(deferred);
     r.start();
     await flush();
 
-    r.advance(); // tick 1, nothing stored yet
-    r.advance(); // tick 2
-    r.advance(); // tick 3
-    await deferred.answer("west"); // answers the request made at tick 0
+    for (let i = 0; i < 5; i++) r.advance(); // nothing arrives for five ticks
+    await deferred.answer("west"); // about the board at tick 0
 
     r.advance();
-    assert.equal(r.record.failures.arrivedStale, 1);
-    assert.notEqual(r.state.heading, "west");
+    assert.equal(r.state.heading, "west", "no age limit: west is still safe");
+    assert.equal(r.record.moves.at(-1)?.lateness, 5);
+    assert.equal(r.record.failures.lateUnsafe, 0);
   });
 
-  test("discards an answer that became a reverse before it landed", async () => {
+  test("discards a late answer that is no longer safe, and goes straight", async () => {
+    const deferred = new Deferred();
+    const { r } = runner(deferred);
+    r.start();
+    await flush();
+
+    // Head starts at row 6 heading north. Six ticks later it is against the
+    // wall, and "north" — safe when it was asked — would now leave the grid.
+    for (let i = 0; i < 6; i++) r.advance();
+    await deferred.answer("north");
+
+    r.advance();
+    assert.equal(r.record.failures.lateUnsafe, 1);
+    assert.equal(r.record.moves.at(-1)?.decidedBy, "continueStraight");
+  });
+
+  test("rejects an answer that would reverse onto the neck", async () => {
     const deferred = new Deferred();
     const { r } = runner(deferred);
     r.start();
@@ -167,6 +191,150 @@ describe("runner: forced moves", () => {
   });
 });
 
+describe("projection arithmetic", () => {
+  test("projects nothing until a latency has been measured", () => {
+    assert.equal(horizonFor([], 400), 0);
+  });
+
+  test("projects one tick fewer than the ticks the answer spans", () => {
+    // At 400 ms a tick: under a tick lands in time for the current board.
+    assert.equal(horizonFor([300], 400), 0);
+    assert.equal(horizonFor([700], 400), 1);
+    assert.equal(horizonFor([1100], 400), 2);
+  });
+
+  test("leans on the slow end of recent latencies, not the typical one", () => {
+    // The 75th percentile: one fast call among slow ones does not shorten it.
+    assert.equal(horizonFor([100, 900, 900, 900], 400), 2);
+    // Nor does one slow outlier among fast ones lengthen it.
+    assert.equal(horizonFor([100, 100, 100, 900], 400), 0);
+  });
+
+  test("steps the board forward exactly, going straight", () => {
+    const board = projectStraight(createGame(1), 2);
+    assert.deepEqual(board.snake[0], { col: 6, row: 4 });
+    assert.equal(board.tick, 2);
+  });
+
+  test("stops short of a move that would end the game", () => {
+    // Head at row 6 heading north: six steps reach the wall, a seventh leaves it.
+    const board = projectStraight(createGame(1), 10);
+    assert.deepEqual(board.snake[0], { col: 6, row: 0 });
+    assert.equal(board.outcome, null);
+  });
+});
+
+describe("runner: projection", () => {
+  /** Give the runner one measured latency, then let that answer be used. */
+  async function measured(r: Runner, clock: FakeClock, deferred: Deferred, ms: number) {
+    r.start();
+    r.pause(); // tick by hand; moving the clock must not fire ticks
+    await flush();
+    clock.time += ms;
+    await deferred.answer("north");
+    r.advance();
+    await flush();
+  }
+
+  test("sends the board as it will be when the answer lands", async () => {
+    const deferred = new Deferred();
+    const { r, clock } = runner(deferred);
+    await measured(r, clock, deferred, 1100); // two ticks ahead at 400 ms
+
+    const live = r.state.snake[0];
+    const sent = deferred.views.at(-1)!.snake[0];
+    assert.equal(r.horizon, 2);
+    assert.deepEqual(sent, { col: live.col, row: live.row - 2 }, "two cells further on");
+  });
+
+  test("holds an early answer until its tick, then applies it on time", async () => {
+    const deferred = new Deferred();
+    const { r, clock } = runner(deferred);
+    await measured(r, clock, deferred, 1100);
+
+    await deferred.answer("west"); // arrives at once, for two ticks from now
+    r.advance();
+    r.advance();
+    assert.equal(r.state.heading, "north", "held: straight, as projected");
+    assert.deepEqual(
+      r.record.moves.slice(-2).map((m) => m.decidedBy),
+      ["planned", "planned"],
+      "going straight to plan is not a miss",
+    );
+
+    r.advance();
+    assert.equal(r.state.heading, "west");
+    const move = r.record.moves.at(-1)!;
+    assert.equal(move.horizon, 2);
+    assert.equal(move.lateness, 0);
+    assert.equal(r.record.failures.timedOut, 0, "waiting for a projected tick is not a timeout");
+  });
+
+  test("a new game starts projected when latency carries over", async () => {
+    // Without the carried window, the first request of every game went out
+    // unprojected, just as the snake heads for the wall six cells away.
+    const deferred = new Deferred();
+    const clock = new FakeClock();
+    const r = new Runner(createGame(1), {
+      seed: 1,
+      controller: deferred,
+      clock,
+      latencies: [1100],
+    });
+    assert.equal(r.horizon, 2);
+    r.start();
+    r.pause();
+    await flush();
+    assert.equal(deferred.views[0].tick, 2, "the very first request is for two ticks ahead");
+  });
+
+  test("controller share counts only the ticks where a decision was due", async () => {
+    const deferred = new Deferred();
+    const { r, clock } = runner(deferred);
+    await measured(r, clock, deferred, 1100); // one decided move so far
+    await deferred.answer("west");
+    for (let i = 0; i < 3; i++) r.advance(); // two planned, then west on time
+
+    const kinds = r.record.moves.map((m) => m.decidedBy);
+    assert.deepEqual(kinds, ["controller", "planned", "planned", "controller"]);
+    assert.equal(controllerShare(r.record), 1, "every due decision was the controller's");
+  });
+
+  test("projects nothing when switched off", async () => {
+    const deferred = new Deferred();
+    const { r, clock } = runner(deferred, { project: false });
+    await measured(r, clock, deferred, 1100);
+    assert.equal(r.horizon, 0);
+  });
+
+  test("never projects a keypress, which answers the board on screen", async () => {
+    const { r } = runner(new HumanController());
+    assert.equal(r.horizon, 0);
+  });
+
+  test("forced answers say nothing about latency", async () => {
+    const deferred = new Deferred();
+    const { r, clock } = runner(deferred);
+    r.start();
+    r.pause();
+    await flush();
+    clock.time += 1100;
+    await deferred.answer("north", true);
+    assert.equal(r.horizon, 0, "an instant code decision must not stretch the estimate");
+  });
+
+  test("counts a crash while an answer was still coming as latency's fault", async () => {
+    const { r } = runner(new Silent());
+    r.start();
+    r.pause();
+    await flush();
+    for (let i = 0; i < 7; i++) r.advance(); // straight into the north wall
+    assert.equal(r.state.outcome, "crashed");
+    assert.equal(r.record.failures.diedWaiting, 1);
+    assert.equal(r.record.failures.gameInvalid, 0, "the model never chose that move");
+  });
+});
+
 describe("runner: overlap", () => {
   test("holds one request at a time and re-asks once an answer is consumed", async () => {
     const deferred = new Deferred();
@@ -189,7 +357,7 @@ describe("runner: overlap", () => {
 
   test("a controller slower than the tick still contributes moves", async () => {
     const deferred = new Deferred();
-    const { r } = runner(deferred, { stalenessCap: 5 });
+    const { r } = runner(deferred);
     r.start();
     await flush();
 
@@ -202,7 +370,7 @@ describe("runner: overlap", () => {
 
     assert.equal(r.state.heading, "west");
     assert.equal(r.record.moves.at(-1)?.decidedBy, "controller");
-    assert.equal(r.record.moves.at(-1)?.staleness, 2, "acted on a board two ticks old");
+    assert.equal(r.record.moves.at(-1)?.lateness, 2, "acted on a board two ticks old");
   });
 
   test("reports an outstanding request, and stops while an answer waits", async () => {
@@ -234,6 +402,44 @@ describe("runner: clock", () => {
     clock.advance(4000);
     assert.equal(r.state.tick, 1, "a paused runner does not advance");
     assert.equal(r.running, false);
+  });
+
+  test("stopping from inside a tick stops the loop", async () => {
+    // Stopping at a tick cap is done from onTick. The loop used to reschedule
+    // itself after onTick returned, leaving the game running unseen.
+    const clock = new FakeClock();
+    const r: Runner = new Runner(createGame(1), {
+      seed: 1,
+      controller: new Instant("west"),
+      clock,
+      onTick: (state) => {
+        if (state.tick >= 2) r.stop();
+      },
+    });
+    r.start();
+    await flush();
+    clock.advance(400);
+    clock.advance(400);
+    clock.advance(4000);
+    assert.equal(r.state.tick, 2);
+    assert.equal(r.running, false);
+  });
+
+  test("a stopped runner asks the controller nothing more", async () => {
+    const deferred = new Deferred();
+    const clock = new FakeClock();
+    const r: Runner = new Runner(createGame(1), {
+      seed: 1,
+      controller: deferred,
+      clock,
+      onTick: () => r.stop(),
+    });
+    r.start();
+    await flush();
+    const before = deferred.calls;
+    clock.advance(400); // one tick, which stops the runner from onTick
+    await flush();
+    assert.equal(deferred.calls, before, "no request opened after stopping");
   });
 
   test("advance steps exactly once while paused", async () => {
@@ -290,7 +496,7 @@ describe("human controller", () => {
     r.advance();
 
     assert.equal(r.state.heading, "east", "the last-moment turn must register");
-    assert.equal(r.record.failures.arrivedStale, 0);
+    assert.equal(r.record.failures.lateUnsafe, 0);
   });
 
   test("takeover is a controller swap", async () => {

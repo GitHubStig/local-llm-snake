@@ -22,7 +22,7 @@ import { createOpenAIProvider } from "../src/ai/openai.ts";
 import { ModelController } from "../src/ai/controller.ts";
 import type { PromptFile } from "../src/ai/prompt.ts";
 
-const models = (process.argv[2] ?? "gemma4:e2b").split(",");
+const models = (process.argv[2] ?? "llama3:latest").split(",");
 const seedCount = Number(process.argv[3] ?? 5);
 const maxTicks = Number(process.argv[4] ?? 200);
 const includeWhy = process.argv[5] === "on";
@@ -82,7 +82,6 @@ async function play(model: string, seed: number) {
           prompt,
           settings: { includeWhy },
           maxTokens: includeWhy ? 64 : 16,
-          getState: () => state,
         });
   const latencies: number[] = [];
   const tally: Tally = { choices: 0, intoDeadEnd: 0, passedFood: 0, disagreed: 0 };

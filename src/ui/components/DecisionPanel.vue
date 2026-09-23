@@ -3,8 +3,18 @@ import { releaseFocus } from "../focus.ts";
 import { computed } from "vue";
 import { useGame } from "../useGame.ts";
 
-const { lastMove, lastMeta, inFlightSince, failures, driver, settings, setSettings, stats } =
-  useGame();
+const {
+  lastMove,
+  lastMeta,
+  inFlightSince,
+  failures,
+  driver,
+  settings,
+  project,
+  setProjection,
+  setSettings,
+  stats,
+} = useGame();
 
 /**
  * Always rendered at a fixed size. The in-flight state flips on and off every
@@ -34,25 +44,50 @@ const source = computed(() => lastMeta.value?.source as string | undefined);
 
 const FAILURE_LABEL: Record<string, string> = {
   timedOut: "Timed out",
-  arrivedStale: "Arrived stale",
+  lateUnsafe: "Late and no longer safe",
   illegalOnArrival: "Illegal on arrival",
   gameInvalid: "Legal but fatal",
+  diedWaiting: "Died waiting for an answer",
 };
+
+const DECIDED_BY: Record<string, string> = {
+  controller: "controller",
+  forced: "code, with one safe move",
+  planned: "straight, as planned",
+  continueStraight: "continued straight",
+};
+
+/** "on time", "1 tick late" — lateness against the tick it was planned for. */
+const arrival = (lateness: number) =>
+  lateness === 0 ? "on time" : `${lateness} tick${lateness === 1 ? "" : "s"} late`;
 </script>
 
 <template>
   <div class="flex min-h-0 flex-col gap-3">
-    <label class="flex shrink-0 items-center gap-1.5 self-end text-[11px] text-muted">
-      <input
-        type="checkbox"
-        :checked="settings.includeWhy"
-        @change="
-          setSettings({ includeWhy: ($event.target as HTMLInputElement).checked });
-          releaseFocus($event);
-        "
-      />
-      Ask why (after the answer, so it never changes the move)
-    </label>
+    <div class="flex shrink-0 flex-col items-end gap-1 text-[11px] text-muted">
+      <label class="flex items-center gap-1.5">
+        <input
+          type="checkbox"
+          :checked="project"
+          @change="
+            setProjection(($event.target as HTMLInputElement).checked);
+            releaseFocus($event);
+          "
+        />
+        Plan ahead for the model's latency
+      </label>
+      <label class="flex items-center gap-1.5">
+        <input
+          type="checkbox"
+          :checked="settings.includeWhy"
+          @change="
+            setSettings({ includeWhy: ($event.target as HTMLInputElement).checked });
+            releaseFocus($event);
+          "
+        />
+        Ask why (after the answer, so it never changes the move)
+      </label>
+    </div>
 
     <div class="flex shrink-0 items-center justify-between gap-2">
       <h2 class="text-sm font-medium">This step's decision</h2>
@@ -82,7 +117,7 @@ const FAILURE_LABEL: Record<string, string> = {
           <dd class="font-mono">{{ lastMove.direction }}</dd>
           <dt class="text-muted">Decided by</dt>
           <dd class="font-mono">
-            {{ lastMove.decidedBy === "controller" ? "controller" : "continued straight" }}
+            {{ DECIDED_BY[lastMove.decidedBy] }}
           </dd>
           <dt class="text-muted">Latency</dt>
           <dd class="font-mono tabular-nums">
@@ -90,8 +125,14 @@ const FAILURE_LABEL: Record<string, string> = {
           </dd>
           <dt v-if="lastMeta?.loadMs" class="text-muted">of which model load</dt>
           <dd v-if="lastMeta?.loadMs" class="font-mono tabular-nums">{{ lastMeta.loadMs }} ms</dd>
-          <dt class="text-muted">Staleness</dt>
-          <dd class="font-mono tabular-nums">{{ lastMove.staleness }}</dd>
+          <template v-if="lastMove.decidedBy === 'controller'">
+            <dt class="text-muted">Planned ahead</dt>
+            <dd class="font-mono tabular-nums">
+              {{ lastMove.horizon === 0 ? "no" : `${lastMove.horizon} ticks` }}
+            </dd>
+            <dt class="text-muted">Arrived</dt>
+            <dd class="font-mono tabular-nums">{{ arrival(lastMove.lateness) }}</dd>
+          </template>
           <template v-if="lastMeta?.promptTokens">
             <dt class="text-muted">Prompt tokens</dt>
             <dd class="font-mono tabular-nums">
@@ -159,9 +200,9 @@ const FAILURE_LABEL: Record<string, string> = {
     </div>
 
     <p class="shrink-0 border-t border-line pt-2 text-xs text-muted">
-      Controller decided {{ stats.share }}% of moves<template v-if="stats.forced">
-        · {{ stats.forced }} forced by code, with only one safe move</template
-      >.
+      Controller made {{ stats.share }}% of the decisions due<template v-if="stats.planned">
+        · {{ stats.planned }} ticks straight as planned</template
+      ><template v-if="stats.forced"> · {{ stats.forced }} forced by code</template>.
     </p>
   </div>
 </template>

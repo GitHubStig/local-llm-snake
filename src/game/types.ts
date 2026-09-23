@@ -64,6 +64,19 @@ export type GameState = {
   rng: { food: number; tiebreak: number };
 };
 
+/**
+ * Just what it takes to judge a move: the rules, the snake, the food and the
+ * heading. Both a full `GameState` and a `GameView` satisfy it, which lets a
+ * controller analyse the board it was handed — under projection, a board a few
+ * ticks ahead of the live game (ADR-0013).
+ */
+export type Board = {
+  readonly rules: Ruleset;
+  readonly snake: readonly Point[];
+  readonly food: readonly Point[];
+  readonly heading: Direction;
+};
+
 /** The read-only view handed to a controller each turn. */
 export type GameView = Readonly<{
   rules: Ruleset;

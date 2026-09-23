@@ -25,10 +25,18 @@ than a steady 800ms.
 
 Counted separately rather than folded into one model-share figure:
 
-- **timed out** — no answer before the deadline
-- **arrived stale** — answer described a board several ticks old
-- **illegal on arrival** — legal when asked, a reverse by the time it landed
-- **game-invalid** — schema-valid, in-enum, and still suicidal
+- **timed out** — an answer was due by this tick and had not arrived
+- **late and no longer safe** — arrived after its tick, when the move would now
+  be fatal
+- **illegal on arrival** — the answer would reverse onto the neck
+- **game-invalid** — applied, legal, and still suicidal
+- **died waiting** — went straight into a crash while an answer was still on
+  its way: latency, not judgement, lost the game
+
+*Amended 2026-09-23* with projection (ADR-0013). "Arrived stale", an age-based
+discard, was replaced by "late and no longer safe"; "died waiting" was added.
+Ticks spent going straight before a projected answer's tick are planned, not
+failures, and a keypress never counts as timed out: not pressing is a choice.
 
 ### Forced moves
 

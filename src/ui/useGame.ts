@@ -22,6 +22,8 @@ const randomSeed = () => Math.floor(Math.random() * 100000);
 export const useGame = createGlobalState(() => {
   const seed = ref(randomSeed());
   const speed = ref<Speed>("normal");
+  /** Send the model the board as it will be when its answer lands (ADR-0013). */
+  const project = ref(true);
   const state = shallowRef<GameState>(createGame(seed.value, DEFAULT_RULES));
   const lastMove = shallowRef<MoveRecord | null>(null);
   const running = ref(false);
@@ -50,17 +52,23 @@ export const useGame = createGlobalState(() => {
       prompt: parityPrompt as PromptFile,
       settings: settings.value,
       maxTokens: 48,
-      getState: () => state.value,
     });
   }
 
   let runner = build();
 
-  function build(): Runner {
+  /**
+   * A new game keeps the latencies measured for the same controller, so its
+   * first request is already projected (ADR-0013). The window is reset whenever
+   * the controller changes, so what carries over always belongs to this one.
+   */
+  function build(latencies?: readonly number[]): Runner {
     return new Runner(createGame(seed.value, DEFAULT_RULES), {
+      latencies,
       seed: seed.value,
       controller: currentController(),
       speed: speed.value,
+      project: project.value,
       onTick: (next, move) => {
         state.value = next;
         lastMove.value = move;
@@ -84,9 +92,10 @@ export const useGame = createGlobalState(() => {
   }
 
   function newGame(nextSeed = randomSeed()) {
+    const measured = runner.latencies;
     runner.stop();
     seed.value = nextSeed;
-    runner = build();
+    runner = build(measured);
     state.value = runner.state;
     lastMove.value = null;
     running.value = false;
@@ -117,6 +126,11 @@ export const useGame = createGlobalState(() => {
   function setSpeed(next: Speed) {
     speed.value = next;
     runner.setSpeed(next);
+  }
+
+  function setProjection(on: boolean) {
+    project.value = on;
+    runner.setProjection(on);
   }
 
   /** Swap who is driving without disturbing the game in progress. */
@@ -161,6 +175,7 @@ export const useGame = createGlobalState(() => {
       stepsPerFood: s.foodEaten === 0 ? "--" : (s.tick / s.foodEaten).toFixed(1),
       share: moves === 0 ? 0 : Math.round(controllerShare(record.value) * 100),
       forced: record.value.moves.filter((m) => m.decidedBy === "forced").length,
+      planned: record.value.moves.filter((m) => m.decidedBy === "planned").length,
     };
   });
 
@@ -174,6 +189,8 @@ export const useGame = createGlobalState(() => {
     driver,
     selected,
     settings,
+    project,
+    setProjection,
     inFlightSince,
     failures,
     setDriver,

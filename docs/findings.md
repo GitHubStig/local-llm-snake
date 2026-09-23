@@ -495,7 +495,115 @@ away. These games were played without a clock, so its excellent judgement is
 real but has never been tested in real time. That is the case ADR-0013's
 projection exists for.
 
-## 14. Runtime matrix
+## 14. Projection in real time: correct answers, too few of them
+
+Measured 2026-09-23 with `scripts/realtime.ts`, which drives the real runner
+on a real clock — unlike `eval-prompt.ts`, where the game waits for every
+answer. Three seeds, 150-tick cap.
+
+| | projection | ticks survived | food | alive | share | timed out | on time | died waiting |
+|---|---|---|---|---|---|---|---|---|
+| qwen3.8:27b at Normal | off | 37, 130, 7 | 4 | 0/3 | 34% | 108 | 0% | 2 |
+| | on | 7, 82, 16 | 5 | 0/3 | 26% | 15 | 76% | 3 |
+| llama3:latest at Fast | off | 7, 8, 8 | 1 | 0/3 | 21% | 18 | 0% | 3 |
+| | on | 11, 8, 8 | 1 | 0/3 | 26% | 9 | 57% | 3 |
+
+**The mechanism works.** With projection on, timeouts fell from 108 to 15 and
+three-quarters of qwen's answers landed on exactly the tick they were planned
+for. A trace of one game shows the intended behaviour: sent the board for the
+tick the snake would reach the wall, qwen answered `west` and it arrived with
+126 ms to spare, turning the snake at the last survivable cell.
+
+**The outcome does not improve.** The same model that never died in 200 ticks
+without a clock dies within tens of ticks in real time, with projection on or
+off, almost always going straight into something while its next answer is on
+the way.
+
+The reason is throughput, not staleness. With one request in flight and qwen
+answering in about 1.1 s, it gets one decision roughly every three ticks at
+Normal speed. Projection makes each decision correct for the board it lands on;
+it cannot make decisions more frequent. Between answers the snake travels about
+three cells straight, and a situation that needs a turn sooner than that is
+fatal. ADR-0013's claim — that a slow model's judgement would come to count in
+real time — is not supported at these speeds.
+
+Two further observations:
+
+- **Every game starts with no latency measured**, because each game builds a
+  new runner. The first request goes out unprojected and lands late, and the
+  snake starts six cells from a wall heading straight at it.
+- **Controller share is misleading with projection on.** Ticks spent going
+  straight while holding an answer for its tick count as continue-straight, the
+  same as a timeout, so share *falls*. They are part of the model's plan.
+
+### Carried latency, planned ticks, and Slow speed
+
+Re-measured after two changes: a new game now inherits the controller's
+measured latency, so only the very first game of a session starts
+unprojected; and ticks spent going straight while a decision is pending for a
+later tick are counted as **planned**, with controller share taken only over
+ticks where a decision was actually due.
+
+| qwen3.8:27b | projection | ticks survived | food | share | on time | planned ticks | timed out | died waiting |
+|---|---|---|---|---|---|---|---|---|
+| Slow, 1000 ms | off | 16, 74, 14 | 9 | 46% | 8% | — | 49 | 0 |
+| | on | **121, 45, 33** | **16** | **92%** | **92%** | 89 | 11 | 3 |
+| Normal, 400 ms | off | 49, 7, 7 | 4 | 18% | 0% | — | 47 | 2 |
+| | on | 14, 31, 7 | 5 | 53% | 64% | 32 | 9 | 3 |
+
+- **At Slow, projection clearly helps.** Ticks survived nearly doubled in
+  total, food went from 9 to 16, and the model made 92% of the decisions due,
+  against 46% without it.
+- **At Normal it still cannot keep up.** Share rises from 18% to 53% once
+  planned ticks are no longer counted as misses, but survival does not improve.
+- **Even at Slow, qwen does not survive 150 ticks.** It answers in about
+  1.1 s against a 1 s tick, so it still gets one decision every two ticks, and
+  every game still ends with the snake dying while its next answer is on the
+  way. Without a clock the same model never died in 200.
+
+### Speed and judgement are separate abilities
+
+llama3 and Apple's on-device model, same conditions, at Normal speed:
+
+| | projection | ticks survived | food | alive | decisions made | on time |
+|---|---|---|---|---|---|---|
+| llama3:latest | off | 141, 150, 91 | 6 | 1/3 | 95% | 99% |
+| | on | 141, 150, 150 | 6 | 2/3 | 97% | 100% |
+| Apple Foundation Models | off | 7, 130, 9 | 1 | 0/3 | 31% | 0% |
+| | on | 9, 7, 7 | 1 | 0/3 | 72% | 90% |
+
+- **llama3 keeps up.** At about 320 ms it answers inside a 400 ms tick, so
+  projection has nothing to do and it makes nearly every decision on time. In
+  real time it plays as it does without a clock: it survives, aimlessly, and
+  eats little. Its losses are starvation, not speed.
+- **Apple's model neither keeps up nor chooses.** At about 545 ms it gets a
+  decision every other tick, and its choices are close to random, so five of
+  six games end within nine ticks, straight into the wall the snake starts
+  facing. Projection lands its answers on the right tick; an on-time random
+  move does not save it.
+
+| | fast enough for Normal | acts on the facts |
+|---|---|---|
+| llama3:latest | yes, ~320 ms | no |
+| qwen3.8:27b | no, ~1100 ms | yes |
+| Apple Foundation Models | no, ~545 ms | no |
+
+No model tested has both. That is the profile JEV claims — an answer in under
+200 ms from a model built to choose between described options — and the bar a
+JEV-like local model would have to clear.
+
+### Two runner bugs found while measuring
+
+- `stop()` called from inside `onTick` was ignored: the tick loop rescheduled
+  itself after `onTick` returned. In the first real-time run, games that reached
+  the tick cap kept running unseen, still querying Ollama *during the next
+  game*, which inflated its latency and invalidated that run. The numbers above
+  are from a clean re-run.
+- A runner stopped from inside a tick still opened one more request as the tick
+  ended. Pausing must keep asking, since that is how Step works with a model;
+  stopping now does not.
+
+## 15. Runtime matrix
 
 One `package.json`, no `deno.json`, no `bunfig.toml`. 20 of 21 tasks green.
 

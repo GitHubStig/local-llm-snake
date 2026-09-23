@@ -3,6 +3,7 @@ import {
   DIRECTIONS,
   DEFAULT_RULES,
   OPPOSITE,
+  type Board,
   type Direction,
   type GameState,
   type GameView,
@@ -32,7 +33,7 @@ export function translate(p: Point, direction: Direction): Point {
  * fatal in every configuration (ADR-0003). At length 1 there is no neck, so
  * all four are legal.
  */
-export function legalMoves(state: GameState): Direction[] {
+export function legalMoves(state: Board): Direction[] {
   if (state.snake.length < 2) return [...DIRECTIONS];
   return DIRECTIONS.filter((d) => d !== OPPOSITE[state.heading]);
 }
@@ -41,12 +42,12 @@ export function legalMoves(state: GameState): Direction[] {
  * Cells a move cannot enter. The tail is excluded because it vacates on the
  * same tick — unless the snake is about to grow into it.
  */
-function blocked(state: GameState, willGrow: boolean): Point[] {
+function blocked(state: Board, willGrow: boolean): readonly Point[] {
   return willGrow ? state.snake : state.snake.slice(0, -1);
 }
 
 /** Opt-in analysis. The engine never calls this on a controller's behalf. */
-export function isImmediatelySafe(state: GameState, direction: Direction): boolean {
+export function isImmediatelySafe(state: Board, direction: Direction): boolean {
   const target = translate(state.snake[0], direction);
   if (!inBounds(target, state.rules)) return false;
   const willGrow = state.food.some((f) => samePoint(f, target));

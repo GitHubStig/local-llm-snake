@@ -46,7 +46,6 @@ function controllerFor(state: GameState, answer: string) {
     model: "fake",
     prompt: shippedPrompt as PromptFile,
     settings: { includeWhy: false },
-    getState: () => state,
   });
   return { controller, calls: fake.calls };
 }

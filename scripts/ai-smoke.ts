@@ -9,7 +9,7 @@ import { ModelController } from "../src/ai/controller.ts";
 import { createOllamaProvider } from "../src/ai/ollama.ts";
 import { DEFAULT_SETTINGS, type PromptFile } from "../src/ai/prompt.ts";
 
-const model = process.argv[2] ?? "gemma4:e2b";
+const model = process.argv[2] ?? "llama3:latest";
 const prompt = JSON.parse(readFileSync("src/prompts/jev-parity.json", "utf8")) as PromptFile;
 const provider = createOllamaProvider("http://localhost:11434");
 
@@ -26,7 +26,6 @@ const controller = new ModelController({
   prompt,
   settings: DEFAULT_SETTINGS,
   maxTokens: 64,
-  getState: () => state,
 });
 
 console.log(`model ${model}\n`);

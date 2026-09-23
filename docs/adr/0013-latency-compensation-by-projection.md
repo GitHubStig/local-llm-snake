@@ -1,7 +1,8 @@
 # ADR-0013: Latency compensation by projecting the board
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-22
+- **Accepted:** 2026-09-23, with the decisions below
 
 ## Context
 
@@ -31,7 +32,7 @@ Two properties of the existing design make a better answer possible:
    precisely the board that will exist — including where new food spawns if
    the snake eats along the way.
 
-## Proposal
+## Decision
 
 **Send the model the board as it will be when its answer takes effect, not the
 board as it is now.** Code does the projecting, exactly. The model is not told
@@ -55,9 +56,12 @@ Worked through at Normal speed (*T* = 400 ms):
 | 700 ms | tick *N*+2 | one tick ahead |
 | 1100 ms | tick *N*+3 | two ticks ahead |
 
-*L* is not known in advance, so it is estimated from that model's measured
-latencies, which are already recorded and persisted (ADR-0007). With no
-samples yet, *k* = 0 — today's behaviour — until the first answers calibrate it.
+*L* is not known in advance, so the runner estimates it from the latencies it
+has itself measured for the current controller, over its last 25 answers. A
+new controller starts with none, so its first requests use *k* = 0 until its
+own answers calibrate the estimate. (The dropdown's persisted latencies,
+ADR-0007, were considered as a warm start and not used: they include moves
+played with different settings, such as with `why` on.)
 
 ### Which estimate: err late
 
@@ -85,28 +89,47 @@ losing a game.
 
 ### On arrival
 
-1. Compare the current tick with the answer's **target tick**, not the tick it
-   was asked on.
-2. **Early:** hold it; apply at the target tick.
-3. **On time or late within the cap:** re-check the move against the *current*
-   board. Apply it only if it is still safe. This check is worth having even
-   without projection, since today a young answer that has become fatal is
-   applied.
-4. **Late beyond the cap, or no longer safe:** discard it, as now.
+Answers are judged against their **target tick** — the tick whose board they
+were chosen for — and **there is no age limit**. The old two-tick staleness
+cap is removed: age was only ever a stand-in for "is this move still safe?",
+which can be checked directly.
+
+| answer arrives | what happens |
+|---|---|
+| early | held, and applied at its target tick |
+| on time | applied |
+| late, still safe | applied, however late |
+| late, now unsafe | discarded; the snake goes straight |
+| a reverse, at any time | discarded as illegal |
+
+On time, the board is exactly the one the answer was chosen for, so a fatal
+choice is the model's own and is still counted as *legal but fatal*. Only a late
+answer is re-checked, because only then has the board moved on.
+
+**Why early answers are held rather than applied at once:** a projected answer
+is about a board that does not exist yet. Applied early, it turns the snake
+from the wrong cell — into a cell nobody checked, since every fact in the
+prompt describes the projected position. Holding costs nothing: the snake goes
+straight meanwhile, exactly as the projection assumed. The way to react sooner
+is a shorter horizon, which the rolling latency estimate provides as a model
+gets faster.
+
+**Adapting to latency is automatic.** The horizon is recomputed for every
+request from the controller's last 25 measured latencies, so a faster model or
+faster hardware shortens it within a few moves, with nothing to recalibrate.
 
 ### Where it lives
 
-The runner owns the clock (ADR-0006), so projection belongs there: it computes
-*k*, steps the state forward and passes the projected view to `decide`. The
-`Controller` interface gains an optional latency estimate; live controllers
-report none and are never projected.
+The runner owns the clock (ADR-0006), so projection belongs there. It measures
+each answer's latency itself, computes *k*, steps the state forward and passes
+the projected view to `decide`. The `Controller` interface is unchanged: the
+existing `live` flag marks controllers that are never projected.
 
-One consequence for the model controller: it currently analyses the *live*
-state through `getState()`, because a `GameView` was meant to carry facts but
-no analysis. Under projection it must analyse the view it was handed, since
-that is the board the decision is about. The analysis only needs the rules,
-the snake, the food and the heading, which a view already carries, so
-`getState()` can go.
+The model controller now analyses the view it was handed rather than reading
+the live state through a `getState()` callback, since under projection the two
+differ and the view is the board the decision is about. The analysis functions
+accept any `Board` — rules, snake, food and heading — which both a view and a
+full game state satisfy.
 
 ### What stays fair against JEV
 
@@ -115,6 +138,16 @@ plays whatever has arrived when the tick ends. Projection changes that timing,
 but it is a runner feature applied to every non-live controller, JEV included,
 so the comparison stays like for like. The information each model receives is
 unchanged; only which board it describes moves.
+
+## Result
+
+*Measured 2026-09-23* ([findings.md](../findings.md) §14). The mechanism works
+— timeouts fell from 108 to 15 and 76% of answers landed exactly on their
+tick — but survival did not improve. A model answering in 1.1 s at 400 ms a
+tick gets one decision roughly every three ticks, and projection makes each
+decision correct without making them more frequent. The claim below, that a
+slow model's share would rise, was not supported: share *fell*, because ticks
+spent holding a planned answer are counted as continue-straight.
 
 ## Measuring it
 
@@ -129,18 +162,15 @@ The projection, the horizon arithmetic, target-tick bookkeeping, holding early
 answers and the dead-before-arrival case are all pure logic, testable with the
 fake clock and a controllable controller — no model needed.
 
-## Open questions
+## Decisions on the questions this ADR left open
 
-1. **Which percentile?** Leaning high is agreed above; the 75th is a reasonable
-   start, but it is a tuning question best answered by the projection-error
-   measurement.
-2. **Should the model be told the board is projected?** Proposed: no. From the
-   model's side it is simply the board its move applies to, and an extra line
-   is one more thing to misread. The decision panel should say so plainly, with
-   the horizon, so a human watching is not confused.
-3. **When a late answer is no longer safe, what then?** Continue-straight is
-   today's fallback, but it may be fatal too. The alternative is for code to
-   pick a safe move, recorded as forced — more survival, less of a clean
-   measurement.
-4. **On by default, or a toggle?** A toggle makes the before-and-after
-   measurable from the UI; default on is the better game.
+1. **Estimate:** the 75th percentile of the last 25 measured latencies. Forced
+   answers are excluded, since they are instant, and so are keypresses.
+2. **The model is not told** its board is projected. The decision panel shows
+   how far ahead each move was planned, and whether it arrived on time.
+3. **A late answer that is no longer safe** is discarded and the snake goes
+   straight. Letting code pick a safe move instead was rejected: it would keep
+   more snakes alive but blur what the model actually did.
+4. **A toggle**, on by default: *Plan ahead for the model's latency*.
+
+The keyboard is never projected: a keypress answers the board on screen.

@@ -52,8 +52,11 @@ This was corrected during implementation. Re-requesting on *arrival* also
 turns out to be unimplementable for a controller that resolves synchronously:
 the request loop re-enters itself without ever yielding to a tick.
 
-Before use, a stored answer is discarded if it has become illegal relative to
-the current heading, or exceeded a staleness cap. Staleness is displayed.
+Before use, a stored answer is discarded if it would reverse onto the neck.
+*Amended 2026-09-23:* it was also discarded past a two-tick staleness cap.
+That cap is gone; answers are now judged against the tick they were projected
+for, and a late one is applied as long as it is still safe
+([ADR-0013](0013-latency-compensation-by-projection.md)).
 
 ## Alternatives considered
 

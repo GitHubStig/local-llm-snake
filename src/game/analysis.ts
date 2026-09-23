@@ -1,5 +1,5 @@
 import { isImmediatelySafe, legalMoves, translate } from "./engine.ts";
-import { DIRECTIONS, OPPOSITE, type Direction, type GameState, type Point } from "./types.ts";
+import { DIRECTIONS, OPPOSITE, type Board, type Direction, type Point } from "./types.ts";
 
 /**
  * Exact facts about each candidate move, computed by code so the model
@@ -41,7 +41,7 @@ export function turnOf(heading: Direction, direction: Direction): Turn {
 }
 
 /** Legal moves that do not kill the snake on this step. */
-export function safeMoves(state: GameState): Direction[] {
+export function safeMoves(state: Board): Direction[] {
   return legalMoves(state).filter((d) => isImmediatelySafe(state, d));
 }
 
@@ -65,7 +65,7 @@ function floodFill(start: Point, blocked: ReadonlySet<number>, width: number, he
   return seen;
 }
 
-export function analyzeMove(state: GameState, direction: Direction): MoveFacts {
+export function analyzeMove(state: Board, direction: Direction): MoveFacts {
   const { width, height } = state.rules;
   const target = translate(state.snake[0], direction);
   const eats = state.food.some((f) => f.col === target.col && f.row === target.row);
@@ -99,6 +99,6 @@ export function analyzeMove(state: GameState, direction: Direction): MoveFacts {
 }
 
 /** Facts for every safe move, in the order the engine lists directions. */
-export function analyze(state: GameState): MoveFacts[] {
+export function analyze(state: Board): MoveFacts[] {
   return safeMoves(state).map((d) => analyzeMove(state, d));
 }

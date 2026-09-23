@@ -1,6 +1,6 @@
 import { analyze } from "../game/analysis.ts";
 import type { Controller, Decision } from "../game/controller.ts";
-import type { Direction, GameState, GameView } from "../game/types.ts";
+import type { Direction, GameView } from "../game/types.ts";
 import { buildSchema, buildUser, type PromptFile, type PromptSettings } from "./prompt.ts";
 import type { Provider } from "./types.ts";
 
@@ -10,8 +10,6 @@ export type ModelControllerOptions = {
   prompt: PromptFile;
   settings: PromptSettings;
   maxTokens?: number;
-  /** The live game, since a GameView deliberately carries no analysis. */
-  getState: () => GameState;
 };
 
 /**
@@ -28,8 +26,11 @@ export class ModelController implements Controller {
   }
 
   async decide(view: GameView, signal: AbortSignal): Promise<Decision> {
-    const { provider, model, prompt, settings, maxTokens, getState } = this.#options;
-    const facts = analyze(getState());
+    const { provider, model, prompt, settings, maxTokens } = this.#options;
+    // The board this decision is about. Under projection it is a few ticks
+    // ahead of the live game, so it must be the view, not the live state
+    // (ADR-0013).
+    const facts = analyze(view);
 
     // With fewer than two safe moves there is nothing to choose, so code
     // decides and the model is not called — as JEV does. With none, every move
