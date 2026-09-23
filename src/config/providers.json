@@ -26,6 +26,11 @@
       "reason": "OCR-specialised"
     },
     {
+      "match": "uncensored",
+      "tier": "avoid",
+      "reason": "Excluded from this project"
+    },
+    {
       "match": ":text$",
       "tier": "avoid",
       "reason": "Base model, no chat template"
