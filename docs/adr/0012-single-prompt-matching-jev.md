@@ -73,6 +73,15 @@ the model should not be guessing at all. Untested either way.
 Rejected: they change style rather than accuracy, and are not needed for a fair
 comparison.
 
+**JEV's direction labels** — up, right, down and left, where this prompt says
+north, east, south and west. Tested 2026-09-23 and not adopted. The
+information is identical either way, which is what parity protects. A model
+that reads the facts was unaffected; the default model, llama3, did clearly
+worse with JEV's labels, likely because an option can then contradict itself —
+heading down, the option to the left reads `left (right turn)`
+([findings.md](../findings.md) §13). The prompt file's `directionNames` makes
+switching a one-line change if a future model warrants it.
+
 **Per-option probabilities**, which JEV returns and which make its panel
 readable. Ollama documents a `logprobs` option that might provide the same for
 local models. Deferred until it can be verified.

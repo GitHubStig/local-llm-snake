@@ -491,6 +491,26 @@ rare departures from the obvious move must have boxed it in gradually until no
 safe move remained. None of the three failing models ever crashed;
 all of them starved.
 
+### JEV's direction labels
+
+JEV names its options up, right, down and left; this prompt uses north, east,
+south and west. The information is the same. Measured 2026-09-23 by naming the
+directions JEV's way through the prompt file's `directionNames`:
+
+| | labels | ticks survived | food | alive | differs |
+|---|---|---|---|---|---|
+| muse-glimmer:30b | compass | 200, 200, 200, 119, 200 | 100 | 4/5 | 3% |
+| | JEV's | 200, 200, 200, 119, 200 | 103 | 4/5 | 3% |
+| llama3:latest | compass | 141, 174, 200, 200, 130 | 7 | 2/5 | 74% |
+| | JEV's | 141, 130, 130, 130, 130 | 1 | 0/5 | 71% |
+
+- **A model that reads the facts is unaffected**: identical survival to the tick.
+- **llama3 does worse with JEV's labels**, starving in every game. A likely
+  reason: with them an option can contradict itself on one line — heading
+  down, the option to the left reads `left (right turn)`, a screen word and a
+  relative turn pointing opposite ways. A model leaning on surface words is
+  pulled both ways. Five seeds is thin, but every game moved the same way.
+
 ### The three questions from before
 
 1. **Does parity beat the best ladder level?** Depends entirely on the model.
