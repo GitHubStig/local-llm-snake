@@ -36,10 +36,12 @@ Keeping one request continuously in flight rather than one per tick, so a
 controller slower than the tick still contributes moves. Each tick consumes the
 freshest stored answer.
 
-### Staleness
+### Lateness
 
-How many ticks old the board was when the current stored answer was computed.
-Displayed; capped; an answer past the cap is discarded.
+How many ticks after its target tick an answer was applied; 0 is on time.
+Shown per move. *Replaces staleness*, which measured an answer's age and
+discarded anything over two ticks old. That limit is gone: a late answer is
+applied however late while it is still safe (ADR-0013).
 
 ### Legal move
 
@@ -87,6 +89,36 @@ controller's decision.
 Giving a local model the same information JEV receives, so the two can be
 compared fairly (ADR-0012).
 
+### Projection
+
+Sending a model the board as it will be when its answer lands, rather than as
+it is now (ADR-0013). Exact, because the snake goes straight while an answer is
+pending and the engine is pure, with its random generator in the game state.
+Never applied to a keypress, which answers the board on screen.
+
+### Horizon
+
+How many ticks ahead a board is projected: max(0, ⌈latency ÷ tick⌉ − 1), from
+the 75th percentile of the controller's last 25 latencies. Adapts on its own as
+a model gets faster, and carries into the next game.
+
+### Target tick
+
+The tick whose board an answer was chosen for, and so the tick it is applied
+on. An answer arriving earlier is held until then; one arriving later is
+applied only if still safe.
+
+### Planned tick
+
+A tick spent going straight because the controller's pending decision is for a
+later tick — its answer still on the way, or already held. Straight by design,
+not a miss.
+
+### Died waiting
+
+A crash while going straight with an answer still on its way: latency, not
+judgement, lost the game.
+
 ### Directional attractor
 
 A model answering the same direction regardless of the board. Measured across
@@ -116,16 +148,21 @@ removes the degenerate strategy of circling safely forever (ADR-0003).
 **Crashed** (wall or self), **starved** (hunger), **won** (snake fills the
 board). Recorded distinctly so failure modes do not blur together.
 
-### Model share
+### Controller share
 
-The proportion of moves the model actually decided, as opposed to moves that
-fell through to continue-straight. A direct measure of whether a model can keep
-up with the tick.
+Of the moves where a decision was actually due, the share the controller
+made. Planned ticks are left out, since no decision was due on them; counting
+them as misses made share *fall* when projection was switched on. Forced moves
+count against it, since a decision was due and code made it.
 
 ### Typed failures
 
-Why a model did not decide a move: **timed out**, **arrived stale**, **illegal
-on arrival**, **game-invalid** (schema-valid, in-enum, and still suicidal).
+Why the controller did not decide a move, or decided a fatal one:
+**timed out** (an answer was due and had not arrived), **late and no longer
+safe** (arrived after its tick, when the move would now be fatal), **illegal on
+arrival** (would reverse onto the neck), **game-invalid** (applied, legal, and
+still fatal), and **died waiting**. A keypress is never counted as timed out:
+not pressing is a choice.
 
 ### Prefix caching
 

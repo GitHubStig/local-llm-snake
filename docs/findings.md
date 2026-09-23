@@ -423,7 +423,9 @@ the same facts — avoid dead ends, eat if possible, otherwise close on the food
 | | ticks survived | food | longest | alive | dead end | passed food | differs | median | deaths |
 |---|---|---|---|---|---|---|---|---|---|
 | **code reference** | 200 ×5 | **106** | 27 | 5/5 | 0% | 0% | — | — | — |
+| **gemma4:31b** | 200 ×5 | **115** | 27 | **5/5** | 0% | 0% | **12%** | 1293 ms | none |
 | **qwen3.8:27b** | 200 ×5 | **111** | 27 | **5/5** | 0% | 0% | 22% | 1110 ms | none |
+| **muse-glimmer:30b** | 200, 200, 200, 119, 200 | **100** | 27 | 4/5 | 0% | 0% | **3%** | 1223 ms | 1 crashed |
 | gemma4:e2b | 176, 130, 130, 130, 152 | 4 | 6 | 0/5 | 0% | 0% | 98% | 232 ms | 5 starved |
 | llama3:latest | 141, 174, 200, 200, 130 | 7 | 7 | 2/5 | 0% | 0% | 74% | 318 ms | 3 starved |
 | Apple Foundation Models | 141, 130, 130, 130, 130 | 1 | 4 | 0/5 | 0% | 0% | 59% | 545 ms | 5 starved |
@@ -467,9 +469,20 @@ but it is what random choice among two or three options produces. gemma
 disagrees more because its bias is systematic; Apple's model disagrees less
 because it has none.
 
-So parity sorts the four models into three kinds: one that **reads the facts**
-(qwen3.8:27b), one that **reads the list order** (gemma4:e2b), and two that
-**do neither** (llama3, Apple). None of the three failing models ever crashed;
+So parity sorts the models into three kinds: three that **read the facts**
+(gemma4:31b, qwen3.8:27b and muse-glimmer:30b), one that **reads the list order** (gemma4:e2b),
+and two that **do neither** (llama3, Apple).
+
+gemma4:31b, measured later the same day, is the strongest yet: it ate the most
+of anything tested and agreed with the code reference 88% of the time. Its
+small sibling gemma4:e2b, the same family, picked by list position and starved
+in every game — size, not family, separates the two kinds here.
+
+muse-glimmer:30b follows the facts most closely of all, agreeing with the code
+reference on 97% of moves. Its one loss is the first crash by any
+fact-reading model: it never chose a flagged dead end or passed up food, so its
+rare departures from the obvious move must have boxed it in gradually until no
+safe move remained. None of the three failing models ever crashed;
 all of them starved.
 
 ### The three questions from before
@@ -586,7 +599,26 @@ llama3 and Apple's on-device model, same conditions, at Normal speed:
 |---|---|---|
 | llama3:latest | yes, ~320 ms | no |
 | qwen3.8:27b | no, ~1100 ms | yes |
+| gemma4:31b | no, ~1290 ms | yes |
+| muse-glimmer:30b | no, ~1220 ms | yes |
 | Apple Foundation Models | no, ~545 ms | no |
+
+gemma4:31b at Slow repeats qwen's pattern: projection off, 28, 85 and 47 ticks
+with 49% of decisions made; on, 121, 37 and 82 ticks with 88% made and 87% on
+time. It still dies waiting, getting a decision only every other tick.
+
+muse-glimmer:30b does best of the three large models in real time. At Slow,
+projection off: 34, 64 and 50 ticks, 9 food, 55% of decisions made. On: **150**,
+123 and 48 ticks, **23 food**, 92% made and 95% on time — the first large model
+to survive the full 150 ticks in real time. Following the facts so closely, it
+seldom needs a correction it cannot get in time; the other two games still
+ended with it dying while an answer was on the way.
+
+| at Slow, projection on | ticks survived | food | alive | decisions made | on time |
+|---|---|---|---|---|---|
+| muse-glimmer:30b | 150, 123, 48 | 23 | 1/3 | 92% | 95% |
+| qwen3.8:27b | 121, 45, 33 | 16 | 0/3 | 92% | 92% |
+| gemma4:31b | 121, 37, 82 | 13 | 0/3 | 88% | 87% |
 
 No model tested has both. That is the profile JEV claims — an answer in under
 200 ms from a model built to choose between described options — and the bar a
