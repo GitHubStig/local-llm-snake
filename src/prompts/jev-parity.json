@@ -11,9 +11,7 @@
         "type": "string"
       }
     },
-    "required": [
-      "direction"
-    ],
+    "required": ["direction"],
     "additionalProperties": false
   },
   "options": {
