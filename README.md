@@ -1,0 +1,142 @@
+# Snake playground
+
+A browser playground for watching local language models play Snake in real
+time — and for measuring which ones can.
+
+Each tick, a model is shown the board and exact facts about every safe move,
+computed by code: where the head lands, how far the food is afterwards, how
+much room stays reachable, and whether the move is a dead end. It picks one.
+These are the same inputs JEV receives in its
+[reference implementation](https://github.com/sorrycc/typesafe-snake), so local
+models and JEV can be compared on equal information
+([ADR-0012](docs/adr/0012-single-prompt-matching-jev.md)).
+
+You can also drive the snake yourself with the keyboard.
+
+## Requirements
+
+- **Node 22.12 or newer.** Developed on Node 24.
+- **[Ollama](https://ollama.com)**, running, with at least one chat model
+  pulled. The default is `llama3:latest`.
+- *Optional:* **Apple Foundation Models** via the `fm` CLI on macOS, for
+  Apple's on-device model.
+
+The project also installs, builds and tests under Deno and Bun, but Node is the
+only supported runtime ([ADR-0010](docs/adr/0010-stack-pins-and-runtime.md)).
+
+## Getting started
+
+```sh
+npm install
+npm run dev
+```
+
+Open <http://localhost:5173>.
+
+Ollama is found automatically at `localhost:11434`, and every model it has is
+listed in the **Driver** dropdown. To use Apple's model as well, start its
+server in another terminal:
+
+```sh
+fm serve
+```
+
+It has to be started by hand; the dropdown notes when it is missing.
+
+## Playing
+
+- **Arrow keys** or **WASD** to steer, **space** to pause.
+- **Driver** picks who plays: you, or any discovered model. Models carry
+  labels such as *slow* or *avoid*, and once a model has played, its measured
+  latency. Nothing is ever blocked — watching an unsuitable model fail is part
+  of the point.
+- **Speed** sets the tick, from Slow (1000 ms) to Turbo (60 ms). A model only
+  keeps up if it answers within about a tick.
+- **Plan ahead for the model's latency** sends a slow model the board as it
+  will be when its answer lands, rather than as it is now
+  ([ADR-0013](docs/adr/0013-latency-compensation-by-projection.md)).
+- **Ask why** has the model explain each move. The explanation comes after the
+  answer, so it never changes the move; it only adds latency.
+
+The decision panel shows each tick, the model's last decision, how far ahead it
+was planned and whether it arrived on time, why moves went undecided, and —
+under *What was sent* — the exact prompt and response.
+
+## What we have found
+
+Measured on one Apple-silicon Mac; details in
+[docs/findings.md](docs/findings.md).
+
+- **Large models read the facts; small ones mostly do not.** gemma4:31b,
+  qwen3.8:27b and muse-glimmer:30b chose well almost every time and rarely
+  died. Smaller models picked by list position or close to at random, and
+  starved.
+- **The models that read the facts are too slow for real time.** At 1.1–1.3 s
+  a move they get a decision only every other tick at Slow speed, and die
+  waiting for the next one. Planning ahead helps a lot at Slow, but cannot make
+  decisions more frequent.
+- **No model tested is both fast and able to use the facts.** That is the gap
+  a JEV-like model would fill.
+
+## Scripts
+
+| | |
+|---|---|
+| `npm run dev` | Dev server with hot reload |
+| `npm run build` | Production build into `dist/` |
+| `npm test` | All unit tests (`node:test`) |
+| `npm run typecheck` | `vue-tsc` over the app and tests |
+| `npm run lint` | `oxlint` |
+| `npm run fmt:check` / `fmt` | Check or apply Prettier |
+| `npm run shoot` | Headless screenshots at several viewport sizes, into `screenshots/`. Needs `npx playwright install chromium` once, and a running dev server |
+| `npm run ai-smoke` | Plays a few ticks against Ollama to check the whole stack end to end |
+
+Two measurement scripts need a running model and can take many minutes:
+
+```sh
+# Judgement: plays each model on seeded games with no clock, and reports how
+# often it acts on the facts it is handed. `code` is a reference that picks the
+# obvious move from the same facts, and `fm` is Apple's model via fm serve.
+node scripts/eval-prompt.ts <models, comma-separated> [seeds] [maxTicks] [why]
+
+# Real time: drives the actual game loop on a real clock, with planning ahead
+# off and then on.
+node scripts/realtime.ts <model> [slow|normal|fast|turbo] [seeds] [maxTicks]
+```
+
+The judgement script is repeatable: at temperature 0 a model makes the same
+moves on the same seeds, so results can be compared across runs. Real-time
+results are not, since they depend on how long each answer happens to take.
+
+## Layout
+
+| | |
+|---|---|
+| `src/game/` | The engine, the game loop and the move analysis. Pure TypeScript with no imports from outside itself, so it is tested without a browser |
+| `src/ai/` | Model providers (Ollama, and the OpenAI-compatible API `fm serve` speaks), prompt assembly and the model controller |
+| `src/prompts/jev-parity.json` | The prompt, schema and direction names, editable without touching code |
+| `src/config/providers.json` | Providers, the default model and the rules behind each model's label |
+| `src/ui/` | The Vue app |
+| `tests/` | `node:test` suites |
+| `scripts/` | Screenshots and measurement |
+| `docs/` | Decisions, measurements and terms |
+
+## Documentation
+
+- [`docs/adr/`](docs/adr/README.md) — architecture decisions, with the
+  alternatives that were weighed and rejected.
+- [`docs/findings.md`](docs/findings.md) — the measurements those decisions
+  rest on.
+- [`docs/glossary.md`](docs/glossary.md) — terms such as *projection*,
+  *planned tick* and *controller share*.
+
+## For contributors
+
+- **Node runs TypeScript by stripping types**, so syntax that emits code —
+  `enum`, `namespace`, parameter properties — fails at load. Use `as const`
+  objects and ordinary fields.
+- **Keep `src/game/` free of imports from the rest of the app**, so its tests
+  need no DOM and no network.
+- **Apple's `fm serve` is reached through a dev-server proxy** at `/fm`. It
+  rejects any cross-origin browser request, so the browser cannot call it
+  directly ([ADR-0007](docs/adr/0007-provider-abstraction.md)).
