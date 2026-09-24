@@ -27,8 +27,9 @@ is a controller swap.
 
 ### Shadow mode
 
-An optional toggle that keeps querying the AI while the human drives, so the
-panel can show what it *would* have chosen. Off by default.
+**Not yet built.** Agreed as an optional toggle that keeps querying the AI while
+the human drives, so the panel can show what it *would* have chosen, off by
+default. See [open threads](open-threads.md).
 
 ### Overlap
 

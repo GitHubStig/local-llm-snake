@@ -129,6 +129,8 @@ results are not, since they depend on how long each answer happens to take.
   rest on.
 - [`docs/glossary.md`](docs/glossary.md) — terms such as *projection*,
   *planned tick* and *controller share*.
+- [`docs/open-threads.md`](docs/open-threads.md) — what is still to build or
+  decide.
 
 ## For contributors
 

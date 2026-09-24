@@ -17,7 +17,9 @@ Fixed, non-configurable:
 - Hitting yourself kills.
 - Reversing into your own neck is **not a rule** — see below.
 
-Configurable, via a `Ruleset` object threaded through the engine as data:
+Configurable, via a `Ruleset` object threaded through the engine as data. These
+are configurable in code only; none is exposed in the UI, and whether any should
+be is an [open thread](../open-threads.md).
 
 | Setting | Default |
 |---|---|
@@ -55,6 +57,10 @@ controller would be untouched at any speed while a slow model would be killed
 for being slow rather than for stalling, contaminating the exact comparison the
 project exists to make. Retained as `speedEscalation`, off by default, for
 arcade play rather than measurement.
+
+**Not built** (checked 2026-09-24): the flag is declared in `Ruleset` but nothing
+reads it, so switching it on would do nothing. Whether to build it or remove it
+is an [open thread](../open-threads.md).
 
 **Flat or board-area hunger limit** (144 on a 12x12 board). Rejected in favour
 of length-scaling, which is more forgiving as the board fills and routes get

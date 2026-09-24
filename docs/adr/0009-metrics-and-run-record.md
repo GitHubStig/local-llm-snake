@@ -17,9 +17,13 @@ Food eaten (**primary**), steps survived, steps per food, and share of moves
 the model actually decided. All four displayed. **No composite score** — a
 single number would hide the trade-off the project exists to observe.
 
-Latency is shown as a **distribution, not a median**: "usually 400ms,
+Latency is to be shown as a **distribution, not a median**: "usually 400ms,
 occasionally 3s" is a completely different proposition for a real-time loop
 than a steady 800ms.
+
+**Not yet built** (checked 2026-09-24). The decision panel shows only the latest
+move's latency, and the driver dropdown a median. See
+[open threads](../open-threads.md).
 
 ### Typed failures
 
