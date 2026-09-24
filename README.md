@@ -134,6 +134,9 @@ results are not, since they depend on how long each answer happens to take.
 
 ## For contributors
 
+Start with [AGENTS.md](AGENTS.md), written for coding agents and people alike.
+The essentials:
+
 - **Node runs TypeScript by stripping types**, so syntax that emits code —
   `enum`, `namespace`, parameter properties — fails at load. Use `as const`
   objects and ordinary fields.
