@@ -35,7 +35,7 @@ interface Provider {
 | Parse | `message.content` -> `JSON.parse` | `choices[0].message.content` -> `JSON.parse` |
 | Health | `GET /api/version` | `GET /health` |
 
-**Default model: `llama3:latest`**, named by `defaultModel` in
+**Default model: `tev1:latest`**, named by `defaultModel` in
 `providers.json` and listed first in the driver dropdown. Every request sends
 `"think": false`: omitting it costs 83x on models that think by default.
 
@@ -46,6 +46,13 @@ Its old warning — 2/10 on unambiguous boards, silent truncation above 8k
 tokens — was dropped: the 2/10 was measured on a prompt since replaced, and a
 parity request is about 430 tokens, far below where it truncates. Under parity
 it is weak but alive: 7 food in five games, never crashed ([findings.md](../findings.md) §13).
+
+*Amended 2026-09-30.* The default is now `tev1:latest`, a decision model
+(ADR-0014), and `llama3:latest` has been removed from the machine. tev1 is the
+only model measured that both keeps up at Normal speed and acts on the facts
+([findings.md](../findings.md) §16). It needs Ollama 0.35 or newer. The default
+only places a model first in the dropdown and labels it; when it is not
+installed, nothing is labelled and the list keeps its usual order.
 
 **Responses are read from `message.content`, falling back to
 `message.thinking` when content is empty.** Three lines, harmless for

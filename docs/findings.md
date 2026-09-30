@@ -729,16 +729,17 @@ The library page reports benchmark accuracy for tev1 (73.3% on Ollama's eval,
 
 ### Judgement, no clock
 
-`scripts/eval-prompt.ts`, 5 seeds × 200 ticks, the same seeds as §13:
+`scripts/eval-prompt.ts`, 5 seeds × 200 ticks, the same seeds as §13, asked
+through `/v1/systemone`:
 
 | | ticks survived | food | alive | into dead end | passed food | differs from code | median |
 |---|---|---|---|---|---|---|---|
 | code reference | 200 ×5 | 106 | 5/5 | 0% | 0% | — | — |
-| **tev1** | 187, 200, 200, 200, 200 | **107** | 4/5 | 0% | 0% | 24% | **315 ms** |
-| nimble | 200, 200, 200, 111, 200 | 95 | 4/5 | 0% | 0% | 21% | 685 ms |
+| **tev1** | 200 ×5 | 96 | **5/5** | 0% | 0% | 31% | **317 ms** |
+| nimble | 200, 200, 200, 111, 200 | 99 | 4/5 | 0% | 0% | 20% | 548 ms |
 
-Both use the facts as well as the large chat models in §13 do. Neither ever
-chose a dead end with a way out, or passed up food it could safely eat.
+Both use the facts as the large chat models in §13 do. Neither ever chose a
+dead end with a way out, or passed up food it could safely eat.
 
 ### Latency: the endpoint caches only exact repeats
 
@@ -763,26 +764,26 @@ of JEV parity.
 
 ### Real time
 
-`scripts/realtime.ts`, 3 seeds, 150-tick cap:
+`scripts/realtime.ts`, 3 seeds, 150-tick cap, asked through `/v1/systemone`:
 
 | | speed | projection | ticks survived | food | alive | share | on time | timed out | died waiting |
 |---|---|---|---|---|---|---|---|---|---|
-| tev1 | Normal | off | 150, 150, 150 | 48 | 3/3 | 96% | 99% | 4 | 0 |
-| | | on | 150, 150, 150 | 49 | 3/3 | 96% | 100% | 2 | 0 |
-| tev1 | Fast | off | 39, 55, 7 | 5 | 0/3 | 31% | 0% | 68 | 3 |
-| | | on | 43, 129, 144 | 8 | 0/3 | 89% | 92% | 11 | 2 |
-| nimble | Normal | off | 15, 21, 22 | 4 | 0/3 | 44% | 0% | 30 | 1 |
-| | | on | 150, 50, 150 | 8 | 2/3 | 97% | 99% | 3 | 1 |
+| tev1 | Normal | off | 150, 150, 150 | 46 | 3/3 | 96% | 99% | 5 | 0 |
+| | | on | 150, 150, 150 | 46 | 3/3 | 98% | 100% | 0 | 0 |
+| tev1 | Fast | off | 7, 28, 7 | 2 | 0/3 | 29% | 0% | 29 | 2 |
+| | | on | 7, 94, 106 | 4 | 0/3 | 65% | 93% | 10 | 1 |
+| nimble | Normal | off | 7, 7, 22 | 3 | 0/3 | 15% | 0% | 24 | 1 |
+| | | on | 115, 35, 76 | 13 | 0/3 | 88% | 88% | 16 | 3 |
 
 - **tev1 plays Normal speed.** It answers inside the 400 ms tick, so projection
   has nothing to do, and it survived every game while eating steadily: the
   first model in this project to do both in real time.
 - **At Fast it is too slow,** as expected at ~310 ms against a 150 ms tick.
-  Projection raises its share of decisions from 31% to 89%, but one decision
-  every two or three ticks is still not enough, and it dies waiting.
-- **nimble at Normal needs projection.** Off, its answers arrive late and it
-  dies quickly; on, it survives two of three games but eats little, since it
-  decides only every other tick.
+  Projection raises its share of decisions from 29% to 65%, but it still dies
+  waiting.
+- **nimble is too slow for Normal.** Without projection its answers arrive late
+  and it dies within a few ticks; with projection it lasts longer and eats more,
+  but it decides only every other tick and died in all three games.
 
 This corrects §14's closing table, which found no model both fast enough for
 Normal speed and able to act on the facts:
@@ -790,5 +791,94 @@ Normal speed and able to act on the facts:
 | | fast enough for Normal | acts on the facts |
 |---|---|---|
 | **tev1** | **yes, ~310 ms** | **yes** |
-| nimble | no, ~685 ms | yes |
+| nimble | no, ~550 ms | yes |
 | llama3:latest | yes, ~320 ms | no |
+
+### Correction: the first figures in this section were measured through chat
+
+The first version of this section, committed in `40de8d8`, reported tev1 and
+nimble as decision models, but the scripts had asked them through `/api/chat`
+with the chat prompt. Ollama lists them as `tev1:latest` and `nimble:latest`;
+the scripts were run with the bare names and compared those to the listed
+names, found no match, and fell back to chat without saying so. The app was
+not affected, since it uses the listed names. The scripts now accept either
+form and label every result with the endpoint used.
+
+Those chat figures are real measurements of the same models through the other
+endpoint, and are kept here as such:
+
+| through `/api/chat` | food | alive | median | Normal, projection on |
+|---|---|---|---|---|
+| tev1 | 107 | 4/5 | 315 ms | 3/3 alive, 49 food |
+| nimble | 95 | 4/5 | 685 ms | 2/3 alive, 8 food |
+
+Through either endpoint both models act on the facts, and tev1 keeps up at
+Normal speed. The endpoints led to different moves: through `/v1/systemone`
+tev1 ate less but survived all five games, and nimble answered about 140 ms
+faster. Five games per endpoint are too few to call either better at choosing. The latency
+probes above were always made against `/v1/systemone` directly and are not
+affected.
+
+---
+
+## 17. A mixture-of-experts chat model: gemma-4-26B-A4B heretic
+
+Measured **2026-09-30**, Ollama 0.35.0.
+`pdurlej/gemma-4-26B-A4B-it-heretic:latest` is a community build of Gemma 4
+26B-A4B: 25.2B parameters in total, but a mixture of experts that runs 8 of its
+128 experts per token, about 4B parameters, at Q4_K_M (16.8 GB). *Heretic*
+builds have their refusal behaviour removed. It is a chat model, asked with the
+chat prompt like those in §13, and uses Ollama's built-in `gemma4` renderer and
+parser, so it is formatted as Gemma expects.
+
+### Judgement, no clock
+
+`scripts/eval-prompt.ts`, 5 seeds × 200 ticks, the same seeds as §13 and §16:
+
+| | ticks survived | food | alive | into dead end | passed food | differs from code | median |
+|---|---|---|---|---|---|---|---|
+| code reference | 200 ×5 | 106 | 5/5 | 0% | 0% | — | — |
+| gemma4:31b (§13) | 200 ×5 | 115 | 5/5 | 0% | 0% | 12% | 1293 ms |
+| **gemma-4-26B-A4B heretic** | 200 ×5 | **105** | **5/5** | 0% | 0% | 20% | **553 ms** |
+| tev1 (§16) | 200 ×5 | 96 | 5/5 | 0% | 0% | 31% | 317 ms |
+| llama3:latest (§13) | 141, 174, 200, 200, 130 | 7 | 2/5 | 0% | 0% | 74% | 318 ms |
+
+It reads the facts as well as the large dense models do, survives every game,
+and answers in well under half the time of gemma4:31b: running only a few
+billion parameters per token is what makes it faster. It is the fastest general-purpose
+chat model measured here that acts on the facts, about as fast as the decision
+model nimble; only tev1 is faster. But at 553 ms it is still over the
+400 ms tick at Normal speed, where tev1 is under it.
+
+### Real time
+
+`scripts/realtime.ts`, 3 seeds, 150-tick cap:
+
+| | speed | projection | ticks survived | food | alive | share | on time | timed out | died waiting |
+|---|---|---|---|---|---|---|---|---|---|
+| heretic | Normal | off | 34, 9, 18 | 5 | 0/3 | 45% | 0% | 31 | 1 |
+| | | on | 150, 41, 33 | 12 | 1/3 | 96% | 99% | 3 | 2 |
+| heretic | Slow | off | 150, 150, 150 | 50 | 3/3 | 98% | 100% | 0 | 0 |
+| | | on | 150, 150, 150 | 50 | 3/3 | 98% | 100% | 0 | 0 |
+
+- **At Slow it is the best chat model measured.** Answering well inside the
+  1000 ms tick, it makes nearly every decision and projection has nothing to
+  do. It survived every game with 50 food, where the best large model,
+  muse-glimmer:30b, survived one of three with 23 food even with projection
+  (§14).
+- **At Normal it behaves like nimble** (§16). Its answers take longer than a
+  tick, so without projection they arrive late and it dies quickly. With
+  projection its share rises to 96%, but it decides only every other tick and
+  still dies waiting in two of three games.
+
+| | fast enough for Normal | fast enough for Slow | acts on the facts |
+|---|---|---|---|
+| tev1 | yes, ~310 ms | yes | yes |
+| **gemma-4-26B-A4B heretic** | no, ~553 ms | **yes** | **yes** |
+| nimble | no, ~550 ms | yes | yes |
+| muse-glimmer:30b | no, ~1220 ms | no | yes |
+| llama3:latest | yes, ~320 ms | yes | no |
+
+A mixture of experts closes much of the gap between the large dense models
+and a decision model: judgement like gemma4:31b's at under half its latency.
+tev1 remains the only model here fast enough for Normal speed.

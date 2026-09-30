@@ -22,8 +22,8 @@ You can also drive the snake yourself with the keyboard.
 
 - **Node 22.12 or newer.** Developed on Node 24.
 - **[Ollama](https://ollama.com)**, running, with at least one chat model
-  pulled. The default is `llama3:latest`. Decision models need Ollama 0.35 or
-  newer.
+  pulled. The default is `tev1:latest`, a decision model, which needs Ollama
+  0.35 or newer; any chat model works as well.
 - *Optional:* **Apple Foundation Models** via the `fm` CLI on macOS, for
   Apple's on-device model.
 
@@ -82,10 +82,14 @@ Measured on one Apple-silicon Mac; details in
   a move they get a decision only every other tick at Slow speed, and die
   waiting for the next one. Planning ahead helps a lot at Slow, but cannot make
   decisions more frequent.
-- **tev1, a 4B decision model, is both fast and able to use the facts.** It ate
-  as much food as the code reference without a clock, and at about 310 ms a
-  move it plays Normal speed in real time: all three games measured survived to
-  the cap. It is still too slow for Fast.
+- **tev1, a 4B decision model, is both fast and able to use the facts.** It
+  survived every game without a clock, never walking into a dead end, and at
+  about 310 ms a move it plays Normal speed in real time: all three games
+  measured survived to the cap. It is still too slow for Fast.
+- **A mixture-of-experts chat model comes close.** A Gemma 4 26B-A4B build,
+  which runs about 4B of its 26B parameters per token, judged as well as the
+  large models at about 550 ms a move. It survived every game at Slow speed,
+  but at Normal it falls behind like the others.
 
 ## Scripts
 

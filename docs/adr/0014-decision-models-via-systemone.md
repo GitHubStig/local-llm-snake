@@ -66,15 +66,22 @@ no reason, so the *Ask why* setting does not apply to them.
 *Measured 2026-09-30* ([findings.md](../findings.md) §16).
 
 - **tev1 is the first model tested that both keeps up at Normal speed and acts
-  on the facts.** Without a clock it ate 107 food in five games against the
-  code reference's 106, never chose a dead end when it had a way out, and never
-  passed up food. In real time at Normal it made 96% of the decisions due, and
-  all three games survived the 150-tick cap.
-- **nimble chooses nearly as well but is too slow for Normal** without planning
-  ahead: 95 food and about 685 ms a move.
+  on the facts.** Without a clock it survived all five games with 96 food,
+  against the code reference's 106, never chose a dead end when it had a way
+  out, and never passed up food. In real time at Normal it made 96–98% of the
+  decisions due, and all three games survived the 150-tick cap.
+- **nimble chooses as well but is too slow for Normal:** 99 food without a
+  clock, at about 550 ms a move. In real time at Normal it died in all three
+  games, even with planning ahead.
 - At Fast (150 ms a tick), neither keeps up. Projection raises tev1's share of
-  decisions from 31% to 89%, but each decision still covers about three ticks,
-  and it dies waiting.
+  decisions from 29% to 65%, but it still dies waiting.
+
+*Corrected 2026-09-30.* The figures first recorded here (107 food for tev1, 95
+for nimble at 685 ms) were measured through `/api/chat`, not `/v1/systemone`:
+the measurement scripts compared the bare names `tev1` and `nimble` against
+the listed `tev1:latest` and `nimble:latest`, found no match and fell back to
+chat silently. The app was unaffected. The scripts now match either form and
+label each result with its endpoint; findings §16 keeps both sets.
 
 ## Consequences
 
