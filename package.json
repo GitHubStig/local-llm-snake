@@ -1,7 +1,10 @@
 {
-  "name": "snake",
+  "name": "local-llm-snake",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
@@ -31,5 +34,5 @@
     "vite": "8.3.0",
     "vue-tsc": "3.2.2"
   },
-  "description": "A playground for comparing local LLMs by having them play snake"
+  "description": "Local LLMs play Snake against a real-time deadline. Code works out exact facts about every safe move and the model picks one, so judgement and latency are measured separately."
 }

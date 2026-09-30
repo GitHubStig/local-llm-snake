@@ -1,4 +1,4 @@
-# Snake playground
+# local-llm-snake
 
 A browser playground for watching local language models play Snake in real
 time — and for measuring which ones can.
@@ -20,9 +20,9 @@ You can also drive the snake yourself with the keyboard.
 
 ## Requirements
 
-- **Node 22.12 or newer.** Developed on Node 24.
-- **[Ollama](https://ollama.com)**, running, with at least one chat model
-  pulled. The default is `tev1:latest`, a decision model, which needs Ollama
+- **Node 22.18 or newer**, the first Node 22 release that runs TypeScript files
+  without a flag; the tests and scripts rely on it. Developed on Node 24.
+- **[Ollama](https://ollama.com)**, running, with at least one model pulled. The default is `tev1:latest`, a decision model, which needs Ollama
   0.35 or newer; any chat model works as well.
 - *Optional:* **Apple Foundation Models** via the `fm` CLI on macOS, for
   Apple's on-device model.

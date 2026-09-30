@@ -15,7 +15,7 @@ function parseParams(model: ModelInfo): number | null {
     return reported[2].toLowerCase() === "m" ? Number(reported[1]) / 1000 : Number(reported[1]);
   }
   // A digit-led size token in the tag, e.g. "qwen3.8:27b-mlx" -> 27.
-  const named = /[:\-](\d+(?:\.\d+)?)b\b/i.exec(model.id);
+  const named = /[:-](\d+(?:\.\d+)?)b\b/i.exec(model.id);
   return named ? Number(named[1]) : null;
 }
 
