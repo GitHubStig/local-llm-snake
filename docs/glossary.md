@@ -85,6 +85,14 @@ A move decided by code without calling the model, because there were fewer than
 two safe moves to choose between. Recorded separately so it never counts as the
 controller's decision.
 
+### JEV
+
+A hosted model built to choose between described options rather than write
+text, called through its SystemOne API and claimed to answer in under 200 ms.
+The comparison this project is built around; its reference Snake client is
+[`sorrycc/typesafe-snake`](https://github.com/sorrycc/typesafe-snake). Not
+yet callable from here: there is no API access (see open threads).
+
 ### JEV parity
 
 Giving a local model the same information JEV receives, so the two can be

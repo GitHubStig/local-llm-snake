@@ -6,7 +6,12 @@ time — and for measuring which ones can.
 Each tick, a model is shown the board and exact facts about every safe move,
 computed by code: where the head lands, how far the food is afterwards, how
 much room stays reachable, and whether the move is a dead end. It picks one.
-These are the same inputs JEV receives in its
+
+The yardstick is **JEV**, a hosted model built for exactly this kind of
+choice: it is sent a state and a set of described options through its
+SystemOne API, picks one, and is claimed to answer in under 200 ms. This
+project cannot call JEV yet, for want of API access. The facts each model
+receives here are the same inputs JEV receives in its
 [reference implementation](https://github.com/sorrycc/typesafe-snake), so local
 models and JEV can be compared on equal information
 ([ADR-0012](docs/adr/0012-single-prompt-matching-jev.md)).
