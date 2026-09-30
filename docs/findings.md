@@ -646,7 +646,8 @@ ended with it dying while an answer was on the way.
 | qwen3.8:27b | 121, 45, 33 | 16 | 0/3 | 92% | 92% |
 | gemma4:31b | 121, 37, 82 | 13 | 0/3 | 88% | 87% |
 
-No model tested has both. That is the profile JEV claims — an answer in under
+No model tested at the time had both; tev1, a decision model, later did at
+Normal speed (§16). That is the profile JEV claims — an answer in under
 200 ms from a model built to choose between described options — and the bar a
 JEV-like local model would have to clear.
 
@@ -709,3 +710,85 @@ attributed to Deno. It is **Vite 8 behaviour on every runtime**: an unregistered
 alias produces a warning, exit code 0, and a literal `import.meta.glob(...)`
 left in the bundle that throws at runtime. Reproduced identically under Node.
 Relative patterns avoid it entirely.
+
+---
+
+## 16. Decision models: tev1 and nimble
+
+Measured **2026-09-30** with **Ollama 0.35.0**, which added decision models and
+the `/v1/systemone` endpoint (ADR-0014). Both models are Q8_0 and report the
+capabilities `decision`, `tools`, `thinking` and `completion`.
+
+| | base | size on disk | context |
+|---|---|---|---|
+| tev1 | Qwen3.5 4B fine-tune (Together AI), labelled experimental | 4.48 GB | 2,050 |
+| nimble | Bespoke-Nimble 9B | 9.53 GB | 8,194 |
+
+The library page reports benchmark accuracy for tev1 (73.3% on Ollama's eval,
+88.0% on Together AI's); those figures were not checked here.
+
+### Judgement, no clock
+
+`scripts/eval-prompt.ts`, 5 seeds × 200 ticks, the same seeds as §13:
+
+| | ticks survived | food | alive | into dead end | passed food | differs from code | median |
+|---|---|---|---|---|---|---|---|
+| code reference | 200 ×5 | 106 | 5/5 | 0% | 0% | — | — |
+| **tev1** | 187, 200, 200, 200, 200 | **107** | 4/5 | 0% | 0% | 24% | **315 ms** |
+| nimble | 200, 200, 200, 111, 200 | 95 | 4/5 | 0% | 0% | 21% | 685 ms |
+
+Both use the facts as well as the large chat models in §13 do. Neither ever
+chose a dead end with a way out, or passed up food it could safely eat.
+
+### Latency: the endpoint caches only exact repeats
+
+A single probe earlier suggested tev1 answers in about 40 ms. That was an
+identical request answered from cache. Varying one part of the request at a
+time:
+
+| tev1, warm | ms |
+|---|---|
+| the same request again | 38–45 |
+| a new game tick | 300–310 |
+| only the last option's text changed | 314 |
+| only the end of the instructions changed | 306 |
+| only the heading in `state` changed | 310 |
+
+Any change, wherever it is in the request, costs the full ~310 ms, so
+`/v1/systemone` is not reusing a shared prefix the way `/api/chat` does (see
+*prefix caching* in the glossary). In a game every tick is new, so ~310 ms is
+tev1's real latency on this machine. Without the grid, a request was about
+70 ms faster (294 ms against 367 ms for a first request), but the grid is part
+of JEV parity.
+
+### Real time
+
+`scripts/realtime.ts`, 3 seeds, 150-tick cap:
+
+| | speed | projection | ticks survived | food | alive | share | on time | timed out | died waiting |
+|---|---|---|---|---|---|---|---|---|---|
+| tev1 | Normal | off | 150, 150, 150 | 48 | 3/3 | 96% | 99% | 4 | 0 |
+| | | on | 150, 150, 150 | 49 | 3/3 | 96% | 100% | 2 | 0 |
+| tev1 | Fast | off | 39, 55, 7 | 5 | 0/3 | 31% | 0% | 68 | 3 |
+| | | on | 43, 129, 144 | 8 | 0/3 | 89% | 92% | 11 | 2 |
+| nimble | Normal | off | 15, 21, 22 | 4 | 0/3 | 44% | 0% | 30 | 1 |
+| | | on | 150, 50, 150 | 8 | 2/3 | 97% | 99% | 3 | 1 |
+
+- **tev1 plays Normal speed.** It answers inside the 400 ms tick, so projection
+  has nothing to do, and it survived every game while eating steadily: the
+  first model in this project to do both in real time.
+- **At Fast it is too slow,** as expected at ~310 ms against a 150 ms tick.
+  Projection raises its share of decisions from 31% to 89%, but one decision
+  every two or three ticks is still not enough, and it dies waiting.
+- **nimble at Normal needs projection.** Off, its answers arrive late and it
+  dies quickly; on, it survives two of three games but eats little, since it
+  decides only every other tick.
+
+This corrects §14's closing table, which found no model both fast enough for
+Normal speed and able to act on the facts:
+
+| | fast enough for Normal | acts on the facts |
+|---|---|---|
+| **tev1** | **yes, ~310 ms** | **yes** |
+| nimble | no, ~685 ms | yes |
+| llama3:latest | yes, ~320 ms | no |

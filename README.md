@@ -11,13 +11,19 @@ These are the same inputs JEV receives in its
 models and JEV can be compared on equal information
 ([ADR-0012](docs/adr/0012-single-prompt-matching-jev.md)).
 
+Ollama's *decision* models (Ollama 0.35 and later, such as `tev1` and `nimble`)
+are asked the same way JEV is: they are sent the board and the options, choose
+one, and return a probability for each
+([ADR-0014](docs/adr/0014-decision-models-via-systemone.md)).
+
 You can also drive the snake yourself with the keyboard.
 
 ## Requirements
 
 - **Node 22.12 or newer.** Developed on Node 24.
 - **[Ollama](https://ollama.com)**, running, with at least one chat model
-  pulled. The default is `llama3:latest`.
+  pulled. The default is `llama3:latest`. Decision models need Ollama 0.35 or
+  newer.
 - *Optional:* **Apple Foundation Models** via the `fm` CLI on macOS, for
   Apple's on-device model.
 
@@ -56,7 +62,8 @@ It has to be started by hand; the dropdown notes when it is missing.
   will be when its answer lands, rather than as it is now
   ([ADR-0013](docs/adr/0013-latency-compensation-by-projection.md)).
 - **Ask why** has the model explain each move. The explanation comes after the
-  answer, so it never changes the move; it only adds latency.
+  answer, so it never changes the move; it only adds latency. Decision models
+  give probabilities instead, and ignore it.
 
 The decision panel shows each tick, the model's last decision, how far ahead it
 was planned and whether it arrived on time, why moves went undecided, and —
@@ -67,16 +74,18 @@ under *What was sent* — the exact prompt and response.
 Measured on one Apple-silicon Mac; details in
 [docs/findings.md](docs/findings.md).
 
-- **Large models read the facts; small ones mostly do not.** gemma4:31b,
+- **Large chat models read the facts; small ones mostly do not.** gemma4:31b,
   qwen3.8:27b and muse-glimmer:30b chose well almost every time and rarely
   died. Smaller models picked by list position or close to at random, and
   starved.
-- **The models that read the facts are too slow for real time.** At 1.1–1.3 s
+- **The chat models that read the facts are too slow for real time.** At 1.1–1.3 s
   a move they get a decision only every other tick at Slow speed, and die
   waiting for the next one. Planning ahead helps a lot at Slow, but cannot make
   decisions more frequent.
-- **No model tested is both fast and able to use the facts.** That is the gap
-  a JEV-like model would fill.
+- **tev1, a 4B decision model, is both fast and able to use the facts.** It ate
+  as much food as the code reference without a clock, and at about 310 ms a
+  move it plays Normal speed in real time: all three games measured survived to
+  the cap. It is still too slow for Fast.
 
 ## Scripts
 
@@ -113,8 +122,9 @@ results are not, since they depend on how long each answer happens to take.
 | | |
 |---|---|
 | `src/game/` | The engine, the game loop and the move analysis. Pure TypeScript with no imports from outside itself, so it is tested without a browser |
-| `src/ai/` | Model providers (Ollama, and the OpenAI-compatible API `fm serve` speaks), prompt assembly and the model controller |
-| `src/prompts/jev-parity.json` | The prompt, schema and direction names, editable without touching code |
+| `src/ai/` | Model providers (Ollama, and the OpenAI-compatible API `fm serve` speaks), prompt assembly, and the controllers for chat and decision models |
+| `src/prompts/jev-parity.json` | The chat prompt, schema and direction names, editable without touching code |
+| `src/prompts/jev-decision.json` | The instructions and legend sent to decision models |
 | `src/config/providers.json` | Providers, the default model and the rules behind each model's label |
 | `src/ui/` | The Vue app |
 | `tests/` | `node:test` suites |

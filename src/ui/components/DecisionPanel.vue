@@ -32,14 +32,45 @@ const status = computed(() => {
 const meta = computed(() => lastDecision.value?.meta ?? null);
 const why = computed(() => (meta.value?.why as string | null) ?? null);
 
-type SentRequest = {
-  model: string;
-  system: string;
-  user: string;
-  schema: Record<string, unknown>;
-  maxTokens?: number;
-};
+type SentRequest =
+  | {
+      kind?: undefined;
+      model: string;
+      system: string;
+      user: string;
+      schema: Record<string, unknown>;
+      maxTokens?: number;
+    }
+  | {
+      kind: "decision";
+      model: string;
+      state: Record<string, unknown>;
+      instructions: string;
+      criteria: Record<string, string>;
+    };
 const request = computed(() => (meta.value?.request as SentRequest | undefined) ?? null);
+
+/**
+ * A decision model's probability for each option, highest first. Chat models
+ * give none, so the row reads as a dash for them.
+ */
+const probabilities = computed(() => {
+  const p = meta.value?.probabilities as Record<string, number> | undefined;
+  if (!p) return null;
+  return Object.entries(p)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, v]) => `${name} ${Math.round(v * 100)}%`)
+    .join(" · ");
+});
+const whyPlaceholder = computed(() => {
+  if (request.value?.kind === "decision")
+    return "A decision model gives probabilities, not reasons.";
+  return settings.value.includeWhy ? "No reason yet." : "Not asked for a reason.";
+});
+const confidence = computed(() => {
+  const c = meta.value?.confidence;
+  return typeof c === "number" ? `${Math.round(c * 100)}%` : dash;
+});
 const raw = computed(() => (meta.value?.raw as string | undefined) ?? null);
 
 /** Rare warnings, joined into one line of fixed height so they never shift anything. */
@@ -159,11 +190,22 @@ const arrival = (lateness: number) =>
         <dd class="truncate font-mono tabular-nums">
           <template v-if="typeof meta?.promptTokens === 'number'">
             {{ meta.promptTokens }}
-            <span class="text-muted">({{ meta.cachedPromptTokens ?? 0 }} cached)</span>
+            <span v-if="typeof meta.cachedPromptTokens === 'number'" class="text-muted"
+              >({{ meta.cachedPromptTokens }} cached)</span
+            >
           </template>
           <template v-else>{{ dash }}</template>
         </dd>
+        <dt class="text-muted">Confidence</dt>
+        <dd class="truncate font-mono tabular-nums">{{ confidence }}</dd>
       </dl>
+
+      <!-- One line whatever the model: a decision model's probabilities are too
+           long for the value column, and a chat model has none. -->
+      <p class="mt-2 text-sm text-muted">Probabilities</p>
+      <p class="mt-1 truncate font-mono text-sm tabular-nums" :title="probabilities ?? undefined">
+        {{ probabilities ?? dash }}
+      </p>
 
       <!-- Fixed at three lines: reasons vary in length, and a box that grew and
            shrank with them moved everything below. -->
@@ -172,7 +214,7 @@ const arrival = (lateness: number) =>
         :class="why ? '' : 'text-muted'"
         :title="why ?? undefined"
       >
-        {{ why ?? (settings.includeWhy ? "No reason yet." : "Not asked for a reason.") }}
+        {{ why ?? whyPlaceholder }}
       </p>
       <p class="mt-1 h-4 truncate text-xs text-food" :title="notes || undefined">{{ notes }}</p>
 
@@ -193,7 +235,35 @@ const arrival = (lateness: number) =>
         >
           What was sent to {{ request.model }}
         </summary>
-        <div class="flex flex-col gap-3 border-t border-line p-2">
+        <div
+          v-if="request.kind === 'decision'"
+          class="flex flex-col gap-3 border-t border-line p-2"
+        >
+          <section>
+            <h4 class="mb-1 text-[11px] text-muted">Options — changes every tick</h4>
+            <pre class="sent">{{ JSON.stringify(request.criteria, null, 2) }}</pre>
+          </section>
+          <section>
+            <h4 class="mb-1 text-[11px] text-muted">Response</h4>
+            <pre class="sent">{{ raw }}</pre>
+          </section>
+          <details>
+            <summary class="cursor-pointer text-[11px] text-muted hover:text-text">
+              State — changes every tick
+            </summary>
+            <pre class="sent mt-1">{{ JSON.stringify(request.state, null, 2) }}</pre>
+          </details>
+          <details>
+            <summary class="cursor-pointer text-[11px] text-muted hover:text-text">
+              Instructions — identical every tick
+            </summary>
+            <pre class="sent mt-1">{{ request.instructions }}</pre>
+          </details>
+          <p class="text-[11px] text-muted">
+            Sent to Ollama's <code>/v1/systemone</code> as one <code>choice</code> question.
+          </p>
+        </div>
+        <div v-else class="flex flex-col gap-3 border-t border-line p-2">
           <section>
             <h4 class="mb-1 text-[11px] text-muted">User — changes every tick</h4>
             <pre class="sent">{{ request.user }}</pre>

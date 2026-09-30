@@ -14,6 +14,10 @@
  *
  * LABELS=jev names the directions up, right, down and left, as JEV's own
  * options are named, instead of the prompt file's names.
+ *
+ * Ollama models with the `decision` capability (Ollama 0.35+, e.g. tev1 and
+ * nimble) are asked through /v1/systemone with jev-decision.json, as the app
+ * asks them; every other model gets the chat prompt.
  */
 import { readFileSync } from "node:fs";
 
@@ -23,6 +27,7 @@ import type { Direction, GameState } from "../src/game/types.ts";
 import { createOllamaProvider } from "../src/ai/ollama.ts";
 import { createOpenAIProvider } from "../src/ai/openai.ts";
 import { ModelController } from "../src/ai/controller.ts";
+import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
 import type { PromptFile } from "../src/ai/prompt.ts";
 
 const models = (process.argv[2] ?? "llama3:latest").split(",");
@@ -47,7 +52,20 @@ const prompt: PromptFile = {
     : {}),
 };
 
+const decisionBase = JSON.parse(
+  readFileSync("src/prompts/jev-decision.json", "utf8"),
+) as DecisionPromptFile;
+const decisionPrompt: DecisionPromptFile = {
+  ...decisionBase,
+  ...(jevLabels ? { directionNames: prompt.directionNames } : {}),
+};
+
 const ollama = createOllamaProvider("http://localhost:11434");
+const decisionModels = new Set(
+  (await ollama.listModels().catch(() => []))
+    .filter((m) => m.capabilities.includes("decision"))
+    .map((m) => m.id),
+);
 // Called from Node, not a browser, so no Sec-Fetch-Site header: fm serve
 // accepts it directly and the dev-server proxy is not needed.
 const fm = createOpenAIProvider("http://127.0.0.1:1976", "apple", "Apple Foundation Models");
@@ -83,13 +101,15 @@ async function play(model: string, seed: number) {
   const controller =
     model === "code"
       ? null
-      : new ModelController({
-          provider: route(model).provider,
-          model: route(model).id,
-          prompt,
-          settings: { includeWhy },
-          maxTokens: includeWhy ? 64 : 16,
-        });
+      : decisionModels.has(model)
+        ? new DecisionController({ provider: ollama, model, prompt: decisionPrompt })
+        : new ModelController({
+            provider: route(model).provider,
+            model: route(model).id,
+            prompt,
+            settings: { includeWhy },
+            maxTokens: includeWhy ? 64 : 16,
+          });
   const latencies: number[] = [];
   const tally: Tally = { choices: 0, intoDeadEnd: 0, passedFood: 0, disagreed: 0 };
   let forced = 0;

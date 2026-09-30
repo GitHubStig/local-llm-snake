@@ -48,8 +48,12 @@ export function renderGrid(view: GameView): string {
   return cells.map((row) => row.join("")).join("\n");
 }
 
-/** One self-contained line per option, so there is nothing to cross-reference. */
-export function describeOption(f: MoveFacts, names?: DirectionNames): string {
+/**
+ * The exact facts about one option, as a phrase list. Shared by the chat
+ * prompt and the decision request, so both kinds of model are told the same
+ * things (ADR-0012, ADR-0014).
+ */
+export function describeFacts(f: MoveFacts): string {
   const parts = [
     `the head moves to ${at(f.target)}`,
     f.eats
@@ -64,7 +68,12 @@ export function describeOption(f: MoveFacts, names?: DirectionNames): string {
   } else if (f.canReachTail) {
     parts.push("the tail can still be followed out");
   }
-  return `- ${nameOf(names, f.direction)} (${f.turn}): ${parts.join("; ")}`;
+  return parts.join("; ");
+}
+
+/** One self-contained line per option, so there is nothing to cross-reference. */
+export function describeOption(f: MoveFacts, names?: DirectionNames): string {
+  return `- ${nameOf(names, f.direction)} (${f.turn}): ${describeFacts(f)}`;
 }
 
 /** Every value the template may use. */

@@ -19,6 +19,7 @@ weighed, not just the outcome.
 | [0011](0011-styling-theming-and-icons.md) | Styling, theming and icons |
 | [0012](0012-single-prompt-matching-jev.md) | A single prompt matching JEV's inputs |
 | [0013](0013-latency-compensation-by-projection.md) | Latency compensation by projecting the board |
+| [0014](0014-decision-models-via-systemone.md) | Decision models through Ollama's `/v1/systemone` |
 
 See also the [glossary](../glossary.md) and the [measurements](../findings.md)
 these decisions rest on.

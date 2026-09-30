@@ -34,6 +34,34 @@ export type CompletionResult = {
   truncated: boolean;
 };
 
+/**
+ * A decision ("System One") request: pick one of several described options.
+ * This is the shape JEV's API takes — a state, and a choice question whose
+ * criteria describe each option — which Ollama 0.35 serves at /v1/systemone
+ * for models with the `decision` capability (ADR-0014).
+ */
+export type DecisionRequest = {
+  model: string;
+  /** Data to judge. Treated by the model as data, never as instructions. */
+  state: Record<string, unknown>;
+  instructions: string;
+  /** One entry per option: its name, and a description to judge it by. */
+  criteria: Record<string, string>;
+  signal?: AbortSignal;
+};
+
+export type DecisionResult = {
+  /** The chosen option's name, one of the criteria keys. */
+  choice: string;
+  /** The model's probability for every option. */
+  probabilities: Record<string, number>;
+  confidence: number;
+  wallMs: number;
+  inputTokens: number | null;
+  /** Exactly what came back, for the panel. */
+  raw: string;
+};
+
 export type ModelInfo = {
   id: string;
   parameterSize: string | null;
@@ -56,6 +84,8 @@ export type Provider = {
   warm(model: string): Promise<void>;
   listModels(): Promise<ModelInfo[]>;
   complete(request: CompletionRequest): Promise<CompletionResult>;
+  /** Only for providers serving decision models; absent otherwise. */
+  decide?(request: DecisionRequest): Promise<DecisionResult>;
 };
 
 export type ProviderConfig = {

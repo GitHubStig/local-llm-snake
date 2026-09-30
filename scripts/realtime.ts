@@ -5,6 +5,9 @@
  * Needs a running Ollama, or `fm serve` for `fm`.
  *
  * Usage: node scripts/realtime.ts [model] [speed] [seeds] [maxTicks]
+ *
+ * Ollama decision models (capability `decision`) are asked through
+ * /v1/systemone, as the app asks them.
  */
 import { readFileSync } from "node:fs";
 
@@ -14,6 +17,7 @@ import type { GameState } from "../src/game/types.ts";
 import { ModelController } from "../src/ai/controller.ts";
 import { createOllamaProvider } from "../src/ai/ollama.ts";
 import { createOpenAIProvider } from "../src/ai/openai.ts";
+import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
 import type { PromptFile } from "../src/ai/prompt.ts";
 
 const model = process.argv[2] ?? "llama3:latest";
@@ -27,18 +31,29 @@ const route =
     ? { provider: createOpenAIProvider("http://127.0.0.1:1976", "apple", "Apple"), id: "system" }
     : { provider: createOllamaProvider("http://localhost:11434"), id: model };
 
+const decisionPrompt = JSON.parse(
+  readFileSync("src/prompts/jev-decision.json", "utf8"),
+) as DecisionPromptFile;
+const isDecisionModel =
+  model !== "fm" &&
+  (await route.provider.listModels()).some(
+    (m) => m.id === model && m.capabilities.includes("decision"),
+  );
+
 type Result = { state: GameState; record: RunRecord; latencies: readonly number[] };
 
 /** `latencies` carry over from the previous game, as they do in the UI. */
 function play(project: boolean, seed: number, latencies: readonly number[]): Promise<Result> {
   return new Promise((resolve) => {
-    const controller = new ModelController({
-      provider: route.provider,
-      model: route.id,
-      prompt,
-      settings: { includeWhy: false },
-      maxTokens: 16,
-    });
+    const controller = isDecisionModel
+      ? new DecisionController({ provider: route.provider, model, prompt: decisionPrompt })
+      : new ModelController({
+          provider: route.provider,
+          model: route.id,
+          prompt,
+          settings: { includeWhy: false },
+          maxTokens: 16,
+        });
     let done = false;
     const finish = () => {
       if (done) return;

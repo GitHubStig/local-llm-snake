@@ -8,7 +8,9 @@ import { DEFAULT_RULES, type Direction, type GameState } from "../game/types.ts"
 import type { Controller } from "../game/controller.ts";
 import { ModelController } from "../ai/controller.ts";
 import { DEFAULT_SETTINGS, type PromptFile, type PromptSettings } from "../ai/prompt.ts";
+import { DecisionController, type DecisionPromptFile } from "../ai/decision.ts";
 import parityPrompt from "../prompts/jev-parity.json" with { type: "json" };
+import decisionPrompt from "../prompts/jev-decision.json" with { type: "json" };
 import { useProviders } from "./useProviders.ts";
 
 const randomSeed = () => Math.floor(Math.random() * 100000);
@@ -50,6 +52,19 @@ export const useGame = createGlobalState(() => {
     const { providerId, modelId } = selected.value;
     const provider = providers.providers.get(providerId);
     if (!provider) return human;
+
+    // Decision models (Ollama 0.35+) choose from the options directly and
+    // return a probability for each; they are not asked for text.
+    const entry = providers.entries.value.find(
+      (e) => e.providerId === providerId && e.model.id === modelId,
+    );
+    if (provider.decide && entry?.model.capabilities.includes("decision")) {
+      return new DecisionController({
+        provider,
+        model: modelId,
+        prompt: decisionPrompt as DecisionPromptFile,
+      });
+    }
 
     return new ModelController({
       provider,

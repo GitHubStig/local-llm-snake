@@ -5,7 +5,7 @@ and measurements in [findings.md](findings.md); this is the list of what is
 still to do or still to decide. When an item is done, delete it here and record
 the outcome in the ADR it belongs to.
 
-*Last checked against the code 2026-09-24.*
+*Last checked against the code 2026-09-30.*
 
 ## Agreed, not yet built
 
@@ -25,7 +25,7 @@ the outcome in the ADR it belongs to.
 
 | | What | Where | What would unblock it |
 |---|---|---|---|
-| 5 | **Per-option probabilities**, so a local model's confidence in each option can be shown the way JEV's is. Ollama documents a `logprobs` option that might provide them. | [ADR-0012](adr/0012-single-prompt-matching-jev.md), alternatives | Checking that `logprobs` works with constrained decoding and gives usable per-option figures. |
+| 5 | **Per-option probabilities for chat models.** Decision models now give them ([ADR-0014](adr/0014-decision-models-via-systemone.md)); chat models still do not. Ollama documents a `logprobs` option that might. | [ADR-0012](adr/0012-single-prompt-matching-jev.md), alternatives | Checking that `logprobs` works with constrained decoding and gives usable per-option figures. Less pressing now that the fast model worth watching is a decision model. |
 | 6 | **Saving runs to disk.** The run record is kept in memory, shaped so writing it out is simple. | [ADR-0009](adr/0009-metrics-and-run-record.md) | A reason to keep runs: comparing sessions, or the replay idea below. |
 | 7 | **Continuous integration**, and with it a real claim of Deno and Bun support. | [ADR-0010](adr/0010-stack-pins-and-runtime.md) | A git remote. The repository has none. |
 
@@ -33,8 +33,7 @@ the outcome in the ADR it belongs to.
 
 | | What | Where | Waiting on |
 |---|---|---|---|
-| 8 | **A JEV-like local model** — fast enough to keep up and able to use the facts it is given. None of the six models tested under the parity prompt is both. | [findings.md](findings.md) §14 | A candidate. The bar: answers inside a 400 ms tick at Normal speed, and picks the option closest to the food far more often than chance. |
-| 9 | **The JEV provider itself.** | [ADR-0012](adr/0012-single-prompt-matching-jev.md) | Access to JEV's API. The prompt already matches its inputs. |
+| 8 | **The JEV provider itself.** | [ADR-0012](adr/0012-single-prompt-matching-jev.md), [ADR-0014](adr/0014-decision-models-via-systemone.md) | Access to JEV's API. The decision controller already sends the SystemOne request shape, which JEV's reference implementation uses; that it matches JEV's API is not yet verified. |
 
 ## Ideas noted in passing
 

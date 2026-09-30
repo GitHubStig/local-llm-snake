@@ -165,11 +165,20 @@ arrival** (would reverse onto the neck), **game-invalid** (applied, legal, and
 still fatal), and **died waiting**. A keypress is never counted as timed out:
 not pressing is a choice.
 
+### Decision model
+
+A model that chooses between named options rather than writing text, asked
+through Ollama's `/v1/systemone` endpoint in the same shape as JEV's SystemOne
+API. It returns its choice, a probability for every option and a confidence.
+Recognised by the `decision` capability Ollama reports (ADR-0014).
+
 ### Prefix caching
 
 Reuse of cached computation when consecutive prompts share a leading token
 sequence. A **strict match from token 0** — anything varying at the head
 destroys it. Measured at 8,763ms to 112ms on a 7,243-token prefix (ADR-0008).
+Ollama's `/v1/systemone` does not do it: only an exact repeat is fast
+([findings](findings.md) §16).
 
 ### Run record
 

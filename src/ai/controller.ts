@@ -1,4 +1,4 @@
-import { analyze } from "../game/analysis.ts";
+import { analyze, type MoveFacts } from "../game/analysis.ts";
 import type { Controller, Decision } from "../game/controller.ts";
 import type { GameView } from "../game/types.ts";
 import { buildSchema, buildUser, nameOf, type PromptFile, type PromptSettings } from "./prompt.ts";
@@ -35,13 +35,8 @@ export class ModelController implements Controller {
     // With fewer than two safe moves there is nothing to choose, so code
     // decides and the model is not called — as JEV does. With none, every move
     // is fatal and the snake carries on straight.
-    if (facts.length < 2) {
-      return {
-        direction: facts[0]?.direction ?? view.heading,
-        forced: true,
-        meta: { forced: true, options: facts.length },
-      };
-    }
+    const forced = forcedMove(facts, view);
+    if (forced) return forced;
 
     const user = buildUser(prompt, view, facts);
     const schema = buildSchema(
@@ -82,4 +77,18 @@ export class ModelController implements Controller {
       },
     };
   }
+}
+
+/**
+ * With fewer than two safe moves there is nothing to choose, so code decides
+ * and the model is not called — as JEV does. With none, every move is fatal
+ * and the snake carries on straight. Shared by every model controller.
+ */
+export function forcedMove(facts: readonly MoveFacts[], view: GameView): Decision | null {
+  if (facts.length >= 2) return null;
+  return {
+    direction: facts[0]?.direction ?? view.heading,
+    forced: true,
+    meta: { forced: true, options: facts.length },
+  };
 }
