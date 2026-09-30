@@ -39,9 +39,6 @@ You can also drive the snake yourself with the keyboard.
 - *Optional:* **Apple Foundation Models** via the `fm` CLI on macOS, for
   Apple's on-device model.
 
-The project also installs, builds and tests under Deno and Bun, but Node is the
-only supported runtime ([ADR-0010](docs/adr/0010-stack-pins-and-runtime.md)).
-
 ## Getting started
 
 ```sh

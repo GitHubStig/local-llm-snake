@@ -2,10 +2,6 @@ node_modules/
 dist/
 dist-ssr/
 
-# Node is the canonical runtime (ADR-0010); its lockfile is the committed one.
-deno.lock
-bun.lock
-
 *.local
 .DS_Store
 screenshots/

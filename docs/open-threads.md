@@ -27,7 +27,7 @@ the outcome in the ADR it belongs to.
 |---|---|---|---|
 | 5 | **Per-option probabilities for chat models.** Decision models now give them ([ADR-0014](adr/0014-decision-models-via-systemone.md)); chat models still do not. Ollama documents a `logprobs` option that might. | [ADR-0012](adr/0012-single-prompt-matching-jev.md), alternatives | Checking that `logprobs` works with constrained decoding and gives usable per-option figures. Less pressing now that the fast model worth watching is a decision model. |
 | 6 | **Saving runs to disk.** The run record is kept in memory, shaped so writing it out is simple. | [ADR-0009](adr/0009-metrics-and-run-record.md) | A reason to keep runs: comparing sessions, or the replay idea below. |
-| 7 | **Continuous integration**, and with it a real claim of Deno and Bun support. | [ADR-0010](adr/0010-stack-pins-and-runtime.md) | A git remote. The repository has none. |
+| 7 | **Continuous integration.** | [ADR-0010](adr/0010-stack-pins-and-runtime.md) | Nothing now: the repository has a GitHub remote. What remains is a workflow running the four checks on Node, the only supported runtime. There is no `.github/` yet. |
 
 ## Waiting on something outside the project
 

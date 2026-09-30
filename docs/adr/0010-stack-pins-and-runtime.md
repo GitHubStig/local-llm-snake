@@ -1,6 +1,6 @@
 # ADR-0010: Stack pins and runtime
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-30 (Node only, see the end)
 - **Date:** 2026-09-21
 - **Supersedes:** the Deno-primary decision originally recorded here.
 
@@ -24,6 +24,8 @@ Exact pins, no caret ranges: `vite` 8.3.0, `vue` 3.5.43, `@vitejs/plugin-vue`
 Quality gates, all on Node: `vue-tsc` for typechecking, `oxlint`, `prettier`.
 
 ### Portability without a support claim
+
+*Withdrawn 2026-09-30: see the amendment at the end.*
 
 The project's *shape* is portable, and Deno 2.9.7 and Bun 1.4.2 both run
 install, build, dev, preview and tests today with byte-identical build output.
@@ -108,3 +110,31 @@ non-primary runtimes break within weeks and nobody notices.
   (denoland/deno#35942) no longer affects us, but remains true for anyone
   running the project under Deno.
 - Upgrades are deliberate events.
+
+## Amendment, 2026-09-30: Node only
+
+**Deno and Bun are no longer supported, and the project no longer tries to
+stay portable to them.** Open thread 7 had proposed CI jobs for both, to back
+up the portability described above. Re-measured from a clean copy of the
+repository, neither passed as cleanly as [findings.md](../findings.md) §15
+recorded:
+
+- **Deno cannot install from the committed lockfile.** `deno install` seeds a
+  `deno.lock` from `package-lock.json`, and Deno 2.9.7 rejects it as corrupt.
+  The cause is a bundled dependency (`@tybys/wasm-util`) inside Tailwind's
+  optional `@tailwindcss/oxide-wasm32-wasi` package. With `--no-lock` it
+  installs, builds and passes the tests.
+- **Bun fails the typecheck when it actually runs it.** Under
+  `bun --bun run typecheck`, `vue-tsc` cannot resolve `./ui/App.vue`. Plain
+  `bun run typecheck` passes only because it hands the job to Node.
+
+Keeping two more runtimes working would mean workarounds in the project and
+extra CI jobs, all to support runtimes nobody uses to run it. So Node is the
+only runtime:
+
+- `deno.lock` and `bun.lock` are no longer gitignored, and the README no longer
+  says the project runs on Deno and Bun.
+- The portability rules above are no longer requirements. Importing JSON as a
+  module and leaving `baseUrl` out of `tsconfig.json` still work on Node, so the
+  code that follows them stays as it is.
+- CI, when it is built, runs the four checks on Node only.

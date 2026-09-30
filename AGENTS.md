@@ -38,10 +38,9 @@ layout bugs in this project were invisible in the CSS and obvious on screen.
   properties fail at load. Use `as const` objects and ordinary fields.
 - **`src/game/` imports nothing from outside itself**, so its tests need no DOM
   and no network.
-- **Tests use `node:test`**, in files named `*.test.ts`. Import JSON with
-  `with { type: "json" }` rather than reading it from disk: Deno's sandbox
-  denies file reads, and a test that read from disk passed on Node while
-  silently failing on Deno.
+- **Tests use `node:test`**, in files named `*.test.ts`.
+- **Node is the only runtime** ([ADR-0010](docs/adr/0010-stack-pins-and-runtime.md)).
+  Deno and Bun are not supported, so do not add workarounds for them.
 - **The prompt must give the model the same information JEV receives**
   ([ADR-0012](docs/adr/0012-single-prompt-matching-jev.md)). Do not add hints
   the JEV request does not have. The direction names are a deliberate,

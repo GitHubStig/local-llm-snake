@@ -664,6 +664,27 @@ JEV-like local model would have to clear.
 
 ## 15. Runtime matrix
 
+*Corrected 2026-09-30, and no longer current:* Deno and Bun support has been
+dropped ([ADR-0010](adr/0010-stack-pins-and-runtime.md), amendment).
+Re-measured then, from a clean `git archive` copy of the repository and with
+the same runtime versions, the table below did not hold in three places:
+
+- **Deno install failed.** Deno builds its `deno.lock` from
+  `package-lock.json`, and it rejected the committed lockfile as corrupt: it
+  could not find `@tybys/wasm-util@0.10.2`. That package is bundled inside
+  Tailwind's optional `oxide-wasm32-wasi` package, which has been in the
+  lockfile since the first commit, so the "pass" below must have been measured
+  without it. With `--no-lock`, Deno installed and built, with output
+  byte-identical to Node's, and passed all 106 tests.
+- **Bun failed the typecheck.** Under `bun --bun run typecheck`, `vue-tsc`
+  could not resolve `./ui/App.vue`, the same error as on Deno. Plain `bun run`
+  passes because it hands the job to Node (see the traps below), which is
+  probably how the "pass" below was recorded.
+- **Vitest** was removed from the project in `aa9b725`.
+
+Bun otherwise passed: install, build (byte-identical output), all 106 tests,
+lint and format.
+
 One `package.json`, no `deno.json`, no `bunfig.toml`. 20 of 21 tasks green.
 
 | Task | Node 24.19 | Bun 1.4.2 | Deno 2.9.7 |

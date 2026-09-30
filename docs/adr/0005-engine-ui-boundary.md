@@ -14,7 +14,8 @@ being correct and testable in isolation.
 types, the PRNG, the ruleset, `step()`, `legalMoves()`, and opt-in analysis
 helpers. It is exercised by **`node:test` + `node:assert/strict`** with no DOM and no
 test-runner dependency — which also runs unmodified under Deno and Bun, with
-identical failures, messages and exit codes.
+identical failures, messages and exit codes. (Deno and Bun are no longer
+supported, as of 2026-09-30: see ADR-0010.)
 
 The model controller lives in `src/ai/` precisely because it does I/O, which
 would otherwise contaminate that property.
