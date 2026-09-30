@@ -60,6 +60,15 @@ no reason, so the *Ask why* setting does not apply to them.
   ordering helps ([findings](../findings.md) §16).
 - **Dropping the board from `state` to cut latency.** It saves about 70 ms of
   ~310, but the board is part of what JEV receives.
+- **A more compact request.** *Measured 2026-09-30, not adopted*
+  ([findings](../findings.md) §16). Encoding `state` differently saves nothing:
+  the endpoint renders it into its own text. Tighter wording of the
+  instructions, legend and option facts, with the same information, cut the
+  request from about 490 to 385 tokens and the median from 311 ms to 246 ms.
+  It survived all five games, with 92 food against 96. The endpoint has a floor
+  of about 115 ms per request, so no trimming makes Fast speed workable, and at
+  Normal speed tev1 already keeps up. Worth revisiting if a second request loop
+  (shadow mode) needs the headroom.
 
 ## Result
 

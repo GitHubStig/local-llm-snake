@@ -794,6 +794,47 @@ Normal speed and able to act on the facts:
 | nimble | no, ~550 ms | yes |
 | llama3:latest | yes, ~320 ms | no |
 
+### A more compact request: measured, not adopted
+
+Measured **2026-09-30**, tev1, warm, requests to `/v1/systemone` directly. Each
+variant was sent the same 60 positions from seeded games, in rotating order so
+that background load fell on all of them alike. Some browser processes were
+open during these runs.
+
+| request | input tokens | median | p90 | same choice as current |
+|---|---|---|---|---|
+| current | 492 | 315 ms | 325 ms | — |
+| board as one string, not a list of rows | 498 | 318 ms | 327 ms | 57/60 |
+| head, food and grid size as strings | 491 | 316 ms | 324 ms | 59/60 |
+| shorter option facts | 432 | 304 ms | 310 ms | 56/60 |
+| shorter facts, instructions and legend ("tight") | 385 | 249 ms | 303 ms | 53/60 |
+
+- **How `state` is encoded makes no difference.** Sending the board as one
+  string rather than a JSON array of quoted rows saved no tokens: the endpoint
+  appears to render `state` into its own text, so JSON punctuation never reaches
+  the model.
+- **Latency is a floor plus a per-token cost.** A near-empty request (one state
+  field, two options) was 109 tokens and took 115 ms. Beyond that, each input
+  token cost about 0.5 ms. The board and the instructions each cost about
+  65 ms. No trimming can bring tev1 near Fast speed's 150 ms tick.
+- **Only shorter wording helps.** The tight request states the same facts in
+  fewer words. It kept the DEAD END meaning, as "too little room, tail
+  unreachable".
+
+Played with no clock, 5 seeds × 200 ticks, run back to back:
+
+| tev1 | ticks survived | food | alive | into dead end | passed food | differs from code | median | p90 |
+|---|---|---|---|---|---|---|---|---|
+| current | 200 ×5 | 96 | 5/5 | 0% | 0% | 31% | 311 ms | 314 ms |
+| tight | 200 ×5 | 92 | 5/5 | 0% | 0% | 38% | 246 ms | 298 ms |
+
+The tight request is about 65 ms faster at the median, but only about 16 ms
+faster at the 90th percentile. It plays about as well, though five games cannot
+settle a 4-food difference. It was not adopted. At Normal speed tev1 already
+answers well inside the 400 ms tick, and at Fast speed 250 ms is still too
+slow. It is worth revisiting if something needs the headroom, such as a second
+request loop for shadow mode.
+
 ### Correction: the first figures in this section were measured through chat
 
 The first version of this section, committed in `40de8d8`, reported tev1 and

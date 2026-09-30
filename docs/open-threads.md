@@ -28,13 +28,12 @@ the outcome in the ADR it belongs to.
 | 5 | **Per-option probabilities for chat models.** Decision models now give them ([ADR-0014](adr/0014-decision-models-via-systemone.md)); chat models still do not. Ollama documents a `logprobs` option that might. | [ADR-0012](adr/0012-single-prompt-matching-jev.md), alternatives | Checking that `logprobs` works with constrained decoding and gives usable per-option figures. Less pressing now that the fast model worth watching is a decision model. |
 | 6 | **Saving runs to disk.** The run record is kept in memory, shaped so writing it out is simple. | [ADR-0009](adr/0009-metrics-and-run-record.md) | A reason to keep runs: comparing sessions, or the replay idea below. |
 | 7 | **Continuous integration**, and with it a real claim of Deno and Bun support. | [ADR-0010](adr/0010-stack-pins-and-runtime.md) | A git remote. The repository has none. |
-| 8 | **A more compact decision request.** tev1's ~310 ms is almost all spent reading the ~490-token request, since `/v1/systemone` caches only exact repeats. The same information in fewer tokens — the board as one string rather than a JSON array of quoted rows, tighter option wording — should be faster. Dropping the board saved ~70 ms but breaks parity. Flash attention is already on, so that is not a lever. | [ADR-0014](adr/0014-decision-models-via-systemone.md), [findings.md](findings.md) §16 | Measuring, one run at a time with nothing else loaded. A guess of 20–30% faster is untested, and would not make Fast speed (150 ms) workable. |
 
 ## Waiting on something outside the project
 
 | | What | Where | Waiting on |
 |---|---|---|---|
-| 9 | **The JEV provider itself.** | [ADR-0012](adr/0012-single-prompt-matching-jev.md), [ADR-0014](adr/0014-decision-models-via-systemone.md) | Access to JEV's API. The decision controller already sends the SystemOne request shape, which JEV's reference implementation uses; that it matches JEV's API is not yet verified. |
+| 8 | **The JEV provider itself.** | [ADR-0012](adr/0012-single-prompt-matching-jev.md), [ADR-0014](adr/0014-decision-models-via-systemone.md) | Access to JEV's API. The decision controller already sends the SystemOne request shape, which JEV's reference implementation uses; that it matches JEV's API is not yet verified. |
 
 ## Ideas noted in passing
 

@@ -78,7 +78,8 @@ export function createOllamaProvider(baseUrl: string, label = "Ollama"): Provide
     /**
      * A decision model through Ollama's /v1/systemone (ADR-0014). One choice
      * question named `move`; the answer comes back keyed by our own option
-     * names, with a probability for each. Measured at about 40 ms for tev1.
+     * names, with a probability for each. About 310 ms for tev1: the endpoint
+     * reuses only an exact repeat of a request (findings.md §16).
      */
     async decide(request: DecisionRequest): Promise<DecisionResult> {
       const startedAt = performance.now();
