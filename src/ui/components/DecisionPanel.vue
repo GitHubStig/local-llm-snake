@@ -9,6 +9,7 @@ const {
   inFlightSince,
   failures,
   driver,
+  isDecisionModel,
   settings,
   project,
   setProjection,
@@ -63,7 +64,7 @@ const probabilities = computed(() => {
     .join(" · ");
 });
 const whyPlaceholder = computed(() => {
-  if (request.value?.kind === "decision")
+  if (isDecisionModel.value || request.value?.kind === "decision")
     return "A decision model gives probabilities, not reasons.";
   return settings.value.includeWhy ? "No reason yet." : "Not asked for a reason.";
 });
@@ -123,11 +124,20 @@ const arrival = (lateness: number) =>
         />
         <span>Plan ahead for the model's latency</span>
       </label>
-      <label class="flex items-start gap-1.5">
+      <label
+        class="flex items-start gap-1.5"
+        :class="isDecisionModel ? 'cursor-not-allowed opacity-50' : ''"
+        :title="
+          isDecisionModel
+            ? 'Decision models answer with probabilities, never text, so they cannot give a reason'
+            : undefined
+        "
+      >
         <input
           type="checkbox"
-          class="mt-0.5 shrink-0"
-          :checked="settings.includeWhy"
+          class="mt-0.5 shrink-0 disabled:cursor-not-allowed"
+          :checked="settings.includeWhy && !isDecisionModel"
+          :disabled="isDecisionModel"
           @change="
             setSettings({ includeWhy: ($event.target as HTMLInputElement).checked });
             releaseFocus($event);

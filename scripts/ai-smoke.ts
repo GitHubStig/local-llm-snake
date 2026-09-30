@@ -6,11 +6,15 @@ import { readFileSync } from "node:fs";
 
 import { createGame, step, toView } from "../src/game/engine.ts";
 import { ModelController } from "../src/ai/controller.ts";
-import { createOllamaProvider } from "../src/ai/ollama.ts";
+import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
+import { createOllamaProvider, fullModelName } from "../src/ai/ollama.ts";
 import { DEFAULT_SETTINGS, type PromptFile } from "../src/ai/prompt.ts";
 
-const model = process.argv[2] ?? "llama3:latest";
+const model = process.argv[2] ?? "tev1:latest";
 const prompt = JSON.parse(readFileSync("src/prompts/jev-parity.json", "utf8")) as PromptFile;
+const decisionPrompt = JSON.parse(
+  readFileSync("src/prompts/jev-decision.json", "utf8"),
+) as DecisionPromptFile;
 const provider = createOllamaProvider("http://localhost:11434");
 
 if (!(await provider.health())) {
@@ -19,16 +23,16 @@ if (!(await provider.health())) {
 }
 await provider.warm(model);
 
-let state = createGame(61005);
-const controller = new ModelController({
-  provider,
-  model,
-  prompt,
-  settings: DEFAULT_SETTINGS,
-  maxTokens: 64,
-});
+const isDecisionModel = (await provider.listModels()).some(
+  (m) => m.id === fullModelName(model) && m.capabilities.includes("decision"),
+);
 
-console.log(`model ${model}\n`);
+let state = createGame(61005);
+const controller = isDecisionModel
+  ? new DecisionController({ provider, model, prompt: decisionPrompt })
+  : new ModelController({ provider, model, prompt, settings: DEFAULT_SETTINGS, maxTokens: 64 });
+
+console.log(`model ${model}, asked through ${isDecisionModel ? "/v1/systemone" : "chat"}\n`);
 for (let i = 0; i < 8 && state.outcome === null; i++) {
   const view = toView(state);
   const decision = await controller.decide(view, new AbortController().signal);
@@ -38,7 +42,10 @@ for (let i = 0; i < 8 && state.outcome === null; i++) {
       `-> ${String(decision.direction).padEnd(5)} ` +
       (decision.forced
         ? "forced by code"
-        : `${String(meta.wallMs).padStart(4)}ms  out ${meta.completionTokens}`) +
+        : `${String(meta.wallMs).padStart(4)}ms  ` +
+          (isDecisionModel
+            ? `confidence ${Number(meta.confidence).toFixed(2)}`
+            : `out ${meta.completionTokens}`)) +
       (meta.why ? `\n    why: ${meta.why}` : ""),
   );
   state = step(state, decision.direction);

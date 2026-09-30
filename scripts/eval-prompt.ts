@@ -30,7 +30,7 @@ import { ModelController } from "../src/ai/controller.ts";
 import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
 import type { PromptFile } from "../src/ai/prompt.ts";
 
-const models = (process.argv[2] ?? "llama3:latest").split(",");
+const models = (process.argv[2] ?? "tev1:latest").split(",");
 const seedCount = Number(process.argv[3] ?? 5);
 const maxTicks = Number(process.argv[4] ?? 200);
 const includeWhy = process.argv[5] === "on";

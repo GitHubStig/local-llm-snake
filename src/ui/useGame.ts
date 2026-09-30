@@ -46,6 +46,20 @@ export const useGame = createGlobalState(() => {
 
   const providers = useProviders();
 
+  /**
+   * Whether the chosen model is a decision model (ADR-0014): it answers with
+   * probabilities, never text, so it is asked through a different controller
+   * and the chat-only settings do not apply to it.
+   */
+  const isDecisionModel = computed(() => {
+    if (driver.value !== "model" || selected.value === null) return false;
+    const { providerId, modelId } = selected.value;
+    const entry = providers.entries.value.find(
+      (e) => e.providerId === providerId && e.model.id === modelId,
+    );
+    return entry?.model.capabilities.includes("decision") ?? false;
+  });
+
   /** Human and model are peers; takeover is a controller swap (ADR-0006). */
   function currentController(): Controller {
     if (driver.value === "human" || selected.value === null) return human;
@@ -53,12 +67,7 @@ export const useGame = createGlobalState(() => {
     const provider = providers.providers.get(providerId);
     if (!provider) return human;
 
-    // Decision models (Ollama 0.35+) choose from the options directly and
-    // return a probability for each; they are not asked for text.
-    const entry = providers.entries.value.find(
-      (e) => e.providerId === providerId && e.model.id === modelId,
-    );
-    if (provider.decide && entry?.model.capabilities.includes("decision")) {
+    if (provider.decide && isDecisionModel.value) {
       return new DecisionController({
         provider,
         model: modelId,
@@ -209,6 +218,7 @@ export const useGame = createGlobalState(() => {
     running,
     driver,
     selected,
+    isDecisionModel,
     settings,
     project,
     setProjection,

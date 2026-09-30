@@ -20,7 +20,7 @@ import { createOpenAIProvider } from "../src/ai/openai.ts";
 import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
 import type { PromptFile } from "../src/ai/prompt.ts";
 
-const model = process.argv[2] ?? "llama3:latest";
+const model = process.argv[2] ?? "tev1:latest";
 const speed = (process.argv[3] ?? "normal") as Speed;
 const seedCount = Number(process.argv[4] ?? 3);
 const maxTicks = Number(process.argv[5] ?? 150);

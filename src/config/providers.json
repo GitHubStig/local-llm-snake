@@ -5,7 +5,7 @@
       "label": "Ollama",
       "baseUrl": "http://localhost:11434",
       "api": "ollama",
-      "defaultModel": "llama3:latest"
+      "defaultModel": "tev1:latest"
     },
     {
       "id": "apple",
