@@ -164,3 +164,7 @@ The essentials:
 - **Apple's `fm serve` is reached through a dev-server proxy** at `/fm`. It
   rejects any cross-origin browser request, so the browser cannot call it
   directly ([ADR-0007](docs/adr/0007-provider-abstraction.md)).
+
+## License
+
+[MIT](LICENSE).
