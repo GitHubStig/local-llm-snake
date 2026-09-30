@@ -28,6 +28,12 @@ type ChatResponse = {
  * prompt_eval_cached_count, eval_count and load_duration — exactly the
  * instrumentation the panel and the tick budget need (ADR-0007).
  */
+/**
+ * The name Ollama lists a model under: a bare name means its `latest` tag.
+ * Compare names through this, or `tev1` fails to match the listed `tev1:latest`.
+ */
+export const fullModelName = (name: string) => (name.includes(":") ? name : `${name}:latest`);
+
 export function createOllamaProvider(baseUrl: string, label = "Ollama"): Provider {
   return {
     id: "ollama",

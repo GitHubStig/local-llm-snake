@@ -24,7 +24,7 @@ import { readFileSync } from "node:fs";
 import { analyze, type MoveFacts } from "../src/game/analysis.ts";
 import { createGame, step, toView } from "../src/game/engine.ts";
 import type { Direction, GameState } from "../src/game/types.ts";
-import { createOllamaProvider } from "../src/ai/ollama.ts";
+import { createOllamaProvider, fullModelName } from "../src/ai/ollama.ts";
 import { createOpenAIProvider } from "../src/ai/openai.ts";
 import { ModelController } from "../src/ai/controller.ts";
 import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
@@ -101,7 +101,7 @@ async function play(model: string, seed: number) {
   const controller =
     model === "code"
       ? null
-      : decisionModels.has(model)
+      : decisionModels.has(fullModelName(model))
         ? new DecisionController({ provider: ollama, model, prompt: decisionPrompt })
         : new ModelController({
             provider: route(model).provider,
@@ -164,8 +164,11 @@ for (const model of models) {
   const choices = sum((r) => r.tally.choices);
   const all = runs.flatMap((r) => r.latencies).sort((a, b) => a - b);
 
+  // Marked, so a model that silently fell back to chat cannot pass for a
+  // decision model: a bare `tev1` once did, for a whole day of measurements.
+  const label = decisionModels.has(fullModelName(model)) ? `${model} [decision]` : model;
   console.log(
-    `${model.padEnd(20)}  ${runs
+    `${label.padEnd(20)}  ${runs
       .map((r) => r.state.tick)
       .join(",")
       .padEnd(26)}  ` +

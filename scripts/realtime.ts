@@ -15,7 +15,7 @@ import { createGame } from "../src/game/engine.ts";
 import { Runner, controllerShare, type RunRecord, type Speed } from "../src/game/runner.ts";
 import type { GameState } from "../src/game/types.ts";
 import { ModelController } from "../src/ai/controller.ts";
-import { createOllamaProvider } from "../src/ai/ollama.ts";
+import { createOllamaProvider, fullModelName } from "../src/ai/ollama.ts";
 import { createOpenAIProvider } from "../src/ai/openai.ts";
 import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
 import type { PromptFile } from "../src/ai/prompt.ts";
@@ -37,7 +37,7 @@ const decisionPrompt = JSON.parse(
 const isDecisionModel =
   model !== "fm" &&
   (await route.provider.listModels()).some(
-    (m) => m.id === model && m.capabilities.includes("decision"),
+    (m) => m.id === fullModelName(model) && m.capabilities.includes("decision"),
   );
 
 type Result = { state: GameState; record: RunRecord; latencies: readonly number[] };
@@ -81,7 +81,10 @@ const median = (xs: number[]) =>
 const pct = (n: number, d: number) => (d ? `${Math.round((100 * n) / d)}%` : "--");
 
 await route.provider.warm(route.id);
-console.log(`${model} at ${speed}, ${seedCount} seeds, cap ${maxTicks} ticks, real time\n`);
+console.log(
+  `${model} at ${speed}, ${seedCount} seeds, cap ${maxTicks} ticks, real time, ` +
+    `asked through ${isDecisionModel ? "/v1/systemone" : "chat"}\n`,
+);
 console.log(
   "projection  ticks            food  alive  share    ahead  on time  " +
     "planned  late-unsafe  timed-out  died-waiting  legal-fatal",
