@@ -159,7 +159,12 @@ console.log(
 );
 
 for (const model of models) {
-  if (model !== "code") await route(model).provider.warm(route(model).id);
+  if (model !== "code") {
+    const decision = decisionModels.has(fullModelName(model));
+    if (!(await route(model).provider.warm(route(model).id, { decision }))) {
+      throw new Error(`could not load ${model}`);
+    }
+  }
   const runs = [];
   for (let s = 0; s < seedCount; s++) runs.push(await play(model, 1000 + s * 7919));
 

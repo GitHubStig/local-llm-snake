@@ -76,12 +76,15 @@ export type Provider = {
   readonly label: string;
   health(): Promise<boolean>;
   /**
-   * Load the model's weights before play starts.
+   * Load the model's weights before play starts, resolving once they are
+   * loaded. False if the model could not be loaded; never throws.
    *
    * A cold call costs ~2.2s, almost all of it load, which at any tick speed
    * means the snake is dead by the time the first answer lands (ADR-0009).
+   * Decision models are loaded through their own endpoint, since they do
+   * not serve text generation.
    */
-  warm(model: string): Promise<void>;
+  warm(model: string, options?: { decision?: boolean }): Promise<boolean>;
   listModels(): Promise<ModelInfo[]>;
   complete(request: CompletionRequest): Promise<CompletionResult>;
   /** Only for providers serving decision models; absent otherwise. */

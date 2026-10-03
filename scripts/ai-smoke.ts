@@ -24,7 +24,9 @@ if (!(await provider.health())) {
 const isDecisionModel = listedModel(await provider.listModels(), model).capabilities.includes(
   "decision",
 );
-await provider.warm(model);
+if (!(await provider.warm(model, { decision: isDecisionModel }))) {
+  throw new Error(`could not load ${model}`);
+}
 
 let state = createGame(61005);
 const controller = isDecisionModel

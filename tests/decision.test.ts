@@ -66,7 +66,7 @@ function fakeDecider(choice: string) {
     id: "fake",
     label: "Fake",
     health: async () => true,
-    warm: async () => {},
+    warm: async () => true,
     listModels: async () => [],
     complete: async () => {
       throw new Error("a decision model is never asked to complete text");

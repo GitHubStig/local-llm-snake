@@ -43,8 +43,19 @@ export const useGame = createGlobalState(() => {
    * time — and jumping as it filled and emptied.
    */
   const lastDecision = shallowRef<MoveRecord | null>(null);
+  /**
+   * Set while Play waits for a cold model to load. Started cold, the snake
+   * dies before the first answer lands, so the game starts once it has.
+   */
+  const loadingModel = ref(false);
+  const loadError = ref<string | null>(null);
 
   const providers = useProviders();
+
+  const isDecision = (providerId: string, modelId: string) =>
+    providers.entries.value
+      .find((e) => e.providerId === providerId && e.model.id === modelId)
+      ?.model.capabilities.includes("decision") ?? false;
 
   /**
    * Whether the chosen model is a decision model (ADR-0014): it answers with
@@ -53,12 +64,32 @@ export const useGame = createGlobalState(() => {
    */
   const isDecisionModel = computed(() => {
     if (driver.value !== "model" || selected.value === null) return false;
-    const { providerId, modelId } = selected.value;
-    const entry = providers.entries.value.find(
-      (e) => e.providerId === providerId && e.model.id === modelId,
-    );
-    return entry?.model.capabilities.includes("decision") ?? false;
+    return isDecision(selected.value.providerId, selected.value.modelId);
   });
+
+  /** The load in flight, so pressing Play during one waits for it, not a second. */
+  let warmup: { key: string; promise: Promise<boolean>; pending: boolean } | null = null;
+
+  function warm(providerId: string, modelId: string): Promise<boolean> {
+    const key = `${providerId}:${modelId}`;
+    if (warmup?.key === key && warmup.pending) return warmup.promise;
+    const provider = providers.providers.get(providerId);
+    const promise =
+      provider?.warm(modelId, { decision: isDecision(providerId, modelId) }) ??
+      Promise.resolve(false);
+    const entry = { key, promise, pending: true };
+    void promise.finally(() => (entry.pending = false));
+    warmup = entry;
+    return promise;
+  }
+
+  /** Bumped by anything that should cancel a start still waiting on a load. */
+  let startToken = 0;
+
+  function cancelStart() {
+    startToken++;
+    loadingModel.value = false;
+  }
 
   /** Human and model are peers; takeover is a controller swap (ADR-0006). */
   function currentController(): Controller {
@@ -121,6 +152,7 @@ export const useGame = createGlobalState(() => {
   }
 
   function newGame(nextSeed = randomSeed()) {
+    cancelStart();
     const measured = runner.latencies;
     runner.stop();
     seed.value = nextSeed;
@@ -131,20 +163,39 @@ export const useGame = createGlobalState(() => {
     running.value = false;
   }
 
-  function play() {
-    if (state.value.outcome !== null) return;
+  /**
+   * A new game with a model driving waits for the model to load. Once loaded,
+   * that costs one quick request; a game resumed mid-way does not wait.
+   */
+  async function play() {
+    if (state.value.outcome !== null || loadingModel.value) return;
+    loadError.value = null;
+    if (driver.value === "model" && selected.value && state.value.tick === 0) {
+      const { providerId, modelId } = selected.value;
+      const token = ++startToken;
+      loadingModel.value = true;
+      const loaded = await warm(providerId, modelId);
+      if (token !== startToken) return;
+      loadingModel.value = false;
+      if (!loaded) {
+        loadError.value = `Could not load ${modelId}.`;
+        return;
+      }
+    }
     runner.start();
     running.value = true;
   }
 
   function pause() {
+    cancelStart();
     runner.pause();
     running.value = false;
   }
 
+  /** Pressed while a model loads, it cancels the start. */
   function toggle() {
-    if (running.value) pause();
-    else play();
+    if (running.value || loadingModel.value) pause();
+    else void play();
   }
 
   /** One tick, only meaningful while paused. */
@@ -169,14 +220,16 @@ export const useGame = createGlobalState(() => {
   }
 
   function setDriver(next: "human" | "model") {
+    cancelStart();
     driver.value = next;
     applyController();
   }
 
   function setModel(providerId: string, modelId: string) {
+    cancelStart();
     selected.value = { providerId, modelId };
-    // Preload now, so the first move of the game is not a 2s cold start.
-    void providers.providers.get(providerId)?.warm(modelId);
+    // Preload now, so pressing Play usually finds the model already loaded.
+    void warm(providerId, modelId);
     if (driver.value === "model") applyController();
   }
 
@@ -216,6 +269,8 @@ export const useGame = createGlobalState(() => {
     lastMove,
     lastDecision,
     running,
+    loadingModel,
+    loadError,
     driver,
     selected,
     isDecisionModel,

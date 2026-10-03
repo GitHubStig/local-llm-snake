@@ -292,6 +292,22 @@ at once, so selecting a model now preloads it. The same run afterwards:
 Requests also send `keep_alive: "30m"`, since Ollama's 5 minute default would
 evict the model during any pause long enough to read the panel.
 
+*Added 2026-10-03.* The empty-prompt preload does not work for decision-only
+models: since Ollama 0.35.1, `/api/generate` answers `clef-flash:latest` with
+HTTP 400 ("does not support generate"). The preload ignored the status, so for
+Clef it did nothing. A minimal `/v1/systemone` request loads them instead:
+
+| | cold | then |
+|---|---|---|
+| clef-flash, minimal decision | 1,857 ms | 202 ms |
+| tev1, minimal decision | 994 ms | 151 ms |
+| tev1, empty `/api/generate` | 1,374 ms | — |
+
+Preloading on selection was also not waited for: pressing Play while it was
+still loading started the game cold. Play now waits (ADR-0007, amendment). In
+the app, a cold tev1 took about 1 s to load after Play, then played on past
+step 40.
+
 ## 10. Assistance levels, live
 
 "Every model just goes straight and dies" was reported from the UI. Measured:

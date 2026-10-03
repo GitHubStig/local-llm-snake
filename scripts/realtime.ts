@@ -89,7 +89,9 @@ const median = (xs: number[]) =>
   xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : 0;
 const pct = (n: number, d: number) => (d ? `${Math.round((100 * n) / d)}%` : "--");
 
-await route.provider.warm(route.id);
+if (!(await route.provider.warm(route.id, { decision: isDecisionModel }))) {
+  throw new Error(`could not load ${model}`);
+}
 console.log(
   `${model} at ${speed}, ${seedCount} seeds, cap ${maxTicks} ticks, real time, ` +
     `asked through ${isDecisionModel ? "/v1/systemone" : "chat"}\n`,

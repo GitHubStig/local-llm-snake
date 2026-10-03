@@ -17,7 +17,7 @@ function fakeProvider(answer: string) {
     id: "fake",
     label: "Fake",
     health: async () => true,
-    warm: async () => {},
+    warm: async () => true,
     listModels: async () => [],
     complete: async (request) => {
       calls.push(request);

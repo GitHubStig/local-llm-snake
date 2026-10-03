@@ -156,6 +156,26 @@ Requests carry `keep_alive: "30m"`, because Ollama's 5 minute default evicts
 the model during any pause long enough to actually read the decision panel —
 which would reintroduce the cold cost mid-game.
 
+## Amendment, 2026-10-03: waiting for the load, and decision models
+
+Preloading on selection was not enough, for two reasons:
+
+- **Nothing waited for it.** Pressing Play while the model was still loading
+  started the game anyway, and the snake drove into the wall before the first
+  answer, as before preloading. Now, when a model is driving, **Play on a new
+  game waits for the model to load and then starts by itself.** The button
+  reads *Loading…* meanwhile, and pressing it again cancels. If the model
+  cannot be loaded, the game does not start and the reason is shown. A game
+  resumed mid-way does not wait.
+- **It failed silently for decision-only models.** Since Ollama 0.35.1,
+  decision models such as Clef reject `/api/generate` with HTTP 400 ("does not
+  support generate"), and `warm()` ignored the status. Decision models are now
+  warmed with the smallest possible `/v1/systemone` request: about 1–2 s cold
+  and 150–200 ms once loaded.
+
+`warm(model, { decision })` now resolves to whether the model loaded, and the
+measurement scripts stop if it did not.
+
 ## Consequences
 
 - `fm serve` is not a daemon and must be started manually, so the UI needs an

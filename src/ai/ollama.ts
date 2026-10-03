@@ -62,16 +62,33 @@ export function createOllamaProvider(baseUrl: string, label = "Ollama"): Provide
       }
     },
 
-    async warm(model: string) {
+    async warm(model: string, options?: { decision?: boolean }) {
       try {
-        // An empty prompt loads the weights and returns immediately.
-        await fetch(`${baseUrl}/api/generate`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ model, keep_alive: KEEP_ALIVE }),
-        });
+        // Decision-only models reject /api/generate ("does not support
+        // generate", since Ollama 0.35.1), so they get the smallest possible
+        // decision instead. For any other model an empty prompt loads the
+        // weights and returns immediately.
+        const res = options?.decision
+          ? await fetch(`${baseUrl}/v1/systemone`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                model,
+                state: { warm: true },
+                questions: {
+                  warm: { type: "choice", instructions: "Pick one.", criteria: { a: "a", b: "b" } },
+                },
+                keep_alive: KEEP_ALIVE,
+              }),
+            })
+          : await fetch(`${baseUrl}/api/generate`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ model, keep_alive: KEEP_ALIVE }),
+            });
+        return res.ok;
       } catch {
-        /* the first real call will simply pay the load cost instead */
+        return false;
       }
     },
 
