@@ -34,6 +34,20 @@ type ChatResponse = {
  */
 export const fullModelName = (name: string) => (name.includes(":") ? name : `${name}:latest`);
 
+/**
+ * The listed model a name refers to, or an error. The scripts used to fall
+ * back to chat for a name they could not find, and twice a decision model was
+ * measured through the wrong endpoint without anyone noticing (findings §16).
+ */
+export function listedModel(models: readonly ModelInfo[], name: string): ModelInfo {
+  const found = models.find((m) => m.id === fullModelName(name));
+  if (!found) {
+    const known = models.map((m) => m.id).join(", ") || "none";
+    throw new Error(`model "${name}" is not in Ollama's list (listed: ${known})`);
+  }
+  return found;
+}
+
 export function createOllamaProvider(baseUrl: string, label = "Ollama"): Provider {
   return {
     id: "ollama",

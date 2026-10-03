@@ -12,10 +12,10 @@
 import { readFileSync } from "node:fs";
 
 import { createGame } from "../src/game/engine.ts";
-import { Runner, controllerShare, type RunRecord, type Speed } from "../src/game/runner.ts";
+import { Runner, SPEEDS, controllerShare, type RunRecord, type Speed } from "../src/game/runner.ts";
 import type { GameState } from "../src/game/types.ts";
 import { ModelController } from "../src/ai/controller.ts";
-import { createOllamaProvider, fullModelName } from "../src/ai/ollama.ts";
+import { createOllamaProvider, listedModel } from "../src/ai/ollama.ts";
 import { createOpenAIProvider } from "../src/ai/openai.ts";
 import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
 import type { PromptFile } from "../src/ai/prompt.ts";
@@ -24,6 +24,17 @@ const model = process.argv[2] ?? "tev1:latest";
 const speed = (process.argv[3] ?? "normal") as Speed;
 const seedCount = Number(process.argv[4] ?? 3);
 const maxTicks = Number(process.argv[5] ?? 150);
+
+// A bad argument must stop the run, not quietly produce numbers: an unknown
+// speed once made every tick fire at once, and the run finished in seconds.
+if (!(speed in SPEEDS)) {
+  throw new Error(`unknown speed "${speed}" (use ${Object.keys(SPEEDS).join(", ")})`);
+}
+if (!(Number.isInteger(seedCount) && seedCount > 0 && Number.isInteger(maxTicks) && maxTicks > 0)) {
+  throw new Error(
+    `seeds and maxTicks must be positive integers, got "${process.argv[4]}" and "${process.argv[5]}"`,
+  );
+}
 
 const prompt = JSON.parse(readFileSync("src/prompts/jev-parity.json", "utf8")) as PromptFile;
 const route =
@@ -36,9 +47,7 @@ const decisionPrompt = JSON.parse(
 ) as DecisionPromptFile;
 const isDecisionModel =
   model !== "fm" &&
-  (await route.provider.listModels()).some(
-    (m) => m.id === fullModelName(model) && m.capabilities.includes("decision"),
-  );
+  listedModel(await route.provider.listModels(), model).capabilities.includes("decision");
 
 type Result = { state: GameState; record: RunRecord; latencies: readonly number[] };
 

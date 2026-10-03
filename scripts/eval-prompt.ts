@@ -24,7 +24,7 @@ import { readFileSync } from "node:fs";
 import { analyze, type MoveFacts } from "../src/game/analysis.ts";
 import { createGame, step, toView } from "../src/game/engine.ts";
 import type { Direction, GameState } from "../src/game/types.ts";
-import { createOllamaProvider, fullModelName } from "../src/ai/ollama.ts";
+import { createOllamaProvider, fullModelName, listedModel } from "../src/ai/ollama.ts";
 import { createOpenAIProvider } from "../src/ai/openai.ts";
 import { ModelController } from "../src/ai/controller.ts";
 import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
@@ -61,10 +61,13 @@ const decisionPrompt: DecisionPromptFile = {
 };
 
 const ollama = createOllamaProvider("http://localhost:11434");
+// Checked before any game starts: an unlisted name used to fall back to chat.
+// Runs of only `code` and `fm` do not need Ollama at all.
+const ollamaModels = models.filter((m) => m !== "code" && m !== "fm");
+const listed = ollamaModels.length ? await ollama.listModels() : [];
+for (const model of ollamaModels) listedModel(listed, model);
 const decisionModels = new Set(
-  (await ollama.listModels().catch(() => []))
-    .filter((m) => m.capabilities.includes("decision"))
-    .map((m) => m.id),
+  listed.filter((m) => m.capabilities.includes("decision")).map((m) => m.id),
 );
 // Called from Node, not a browser, so no Sec-Fetch-Site header: fm serve
 // accepts it directly and the dev-server proxy is not needed.

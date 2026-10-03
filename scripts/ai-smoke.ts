@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { createGame, step, toView } from "../src/game/engine.ts";
 import { ModelController } from "../src/ai/controller.ts";
 import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
-import { createOllamaProvider, fullModelName } from "../src/ai/ollama.ts";
+import { createOllamaProvider, listedModel } from "../src/ai/ollama.ts";
 import { DEFAULT_SETTINGS, type PromptFile } from "../src/ai/prompt.ts";
 
 const model = process.argv[2] ?? "tev1:latest";
@@ -21,11 +21,10 @@ if (!(await provider.health())) {
   console.error("Ollama is not reachable on :11434");
   process.exit(1);
 }
-await provider.warm(model);
-
-const isDecisionModel = (await provider.listModels()).some(
-  (m) => m.id === fullModelName(model) && m.capabilities.includes("decision"),
+const isDecisionModel = listedModel(await provider.listModels(), model).capabilities.includes(
+  "decision",
 );
+await provider.warm(model);
 
 let state = createGame(61005);
 const controller = isDecisionModel

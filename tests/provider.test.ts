@@ -2,6 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
 import { looksTruncated, parseCompletion, pickText } from "../src/ai/parse.ts";
+import { listedModel } from "../src/ai/ollama.ts";
 import { classify } from "../src/ai/tiers.ts";
 import type { AdviceRule, ModelInfo, Timings } from "../src/ai/types.ts";
 
@@ -129,5 +130,22 @@ describe("model advice", () => {
   test("does not mistake a non-size token for a size", () => {
     // "e2b" is a variant name, not 2 billion parameters.
     assert.equal(classify(model({ id: "gemma4:e2b", parameterSize: null }), rules).tier, "ok");
+  });
+});
+
+describe("finding a listed model", () => {
+  const listed = [
+    { id: "tev1:latest", parameterSize: "4.2B", contextLength: null, capabilities: ["decision"] },
+    { id: "llama3:text", parameterSize: "8.0B", contextLength: null, capabilities: ["completion"] },
+  ];
+
+  test("a bare name means its latest tag", () => {
+    assert.equal(listedModel(listed, "tev1").id, "tev1:latest");
+    assert.equal(listedModel(listed, "llama3:text").id, "llama3:text");
+  });
+
+  test("an unlisted name is an error, not a fallback to chat", () => {
+    assert.throws(() => listedModel(listed, "clef-flash:latest normal"), /not in Ollama's list/);
+    assert.throws(() => listedModel([], "tev1"), /listed: none/);
   });
 });
