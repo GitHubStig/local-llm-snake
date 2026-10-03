@@ -92,6 +92,15 @@ the listed `tev1:latest` and `nimble:latest`, found no match and fell back to
 chat silently. The app was unaffected. The scripts now match either form and
 label each result with its endpoint; findings §16 keeps both sets.
 
+*Added 2026-10-03* ([findings.md](../findings.md) §18). Ollama 0.35.1 added
+Clef and Clef Flash, Cloudflare's decision models (27B and 9B). They were
+routed here with no change to the code. Both read the facts but play worse than
+tev1 and are slower: Clef Flash survived 1 game of 5 at ~540 ms a move, and
+Clef 3 of 5 at ~1.8 s. Neither keeps up at Normal speed. 0.35.1 also made
+decision models report only the `decision` capability, which is all the
+routing checks. Clef also accepts images; they are not sent, since JEV gets
+text only (ADR-0012).
+
 ## Consequences
 
 - The open thread asking for a fast, fact-reading local model is closed: tev1

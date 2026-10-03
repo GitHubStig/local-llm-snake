@@ -754,7 +754,8 @@ Relative patterns avoid it entirely.
 
 Measured **2026-09-30** with **Ollama 0.35.0**, which added decision models and
 the `/v1/systemone` endpoint (ADR-0014). Both models are Q8_0 and report the
-capabilities `decision`, `tools`, `thinking` and `completion`.
+capabilities `decision`, `tools`, `thinking` and `completion`. (Since Ollama
+0.35.1 they report only `decision`: see §18.)
 
 | | base | size on disk | context |
 |---|---|---|---|
@@ -960,3 +961,88 @@ model nimble; only tev1 is faster. But at 553 ms it is still over the
 A mixture of experts closes much of the gap between the large dense models
 and a decision model: judgement like gemma4:31b's at under half its latency.
 tev1 remains the only model here fast enough for Normal speed.
+
+---
+
+## 18. Clef and Clef Flash, and Ollama 0.35.1
+
+Measured **2026-10-03** with **Ollama 0.35.1**, which added Cloudflare's Clef
+decision models. Both are asked through `/v1/systemone` exactly as tev1 is
+(ADR-0014). The app needed no change: it routes any model reporting `decision`.
+
+| | base | quantization | size on disk | context |
+|---|---|---|---|---|
+| clef-flash | Qwen3.5 family, 9.1B | Q8_0 | 10 GB | 262,144 (`num_ctx` 16,384) |
+| clef | Qwen3.5 family, 27.0B | Q4_K_M | 17 GB | 262,144 (`num_ctx` 16,384) |
+
+Both also accept images, through an `images` field on the request. That is not
+used: JEV is sent text, and a picture of the board would be information JEV
+does not get (ADR-0012).
+
+**0.35.1 changed what decision models report.** `ollama show` and `/api/tags`
+now list only `decision` for tev1, nimble and both Clef models, where 0.35.0
+also listed `tools`, `thinking` and `completion`. The app and the scripts check
+only for `decision`, so routing is unaffected. tev1 re-measured on 0.35.1 gave
+the same result as in §16: 96 food, 5/5 alive, 312 ms median.
+
+### Judgement, no clock
+
+`scripts/eval-prompt.ts`, 5 seeds × 200 ticks, the same seeds as §13, §16 and
+§17, asked through `/v1/systemone`:
+
+| | ticks survived | food | alive | into dead end | passed food | differs from code | median |
+|---|---|---|---|---|---|---|---|
+| code reference | 200 ×5 | 106 | 5/5 | 0% | 0% | — | — |
+| tev1 | 200 ×5 | 96 | 5/5 | 0% | 0% | 31% | 312 ms |
+| clef-flash | 112, 160, 200, 178, 126 | 59 | 1/5 | 0% | 0% | 36% | 540 ms |
+| clef | 200, 200, 191, 128, 200 | 70 | 3/5 | 0% | 0% | 52% | 1,792 ms |
+
+- **Both play worse than tev1, and are slower.** Clef Flash survived one game
+  of five (3 crashed, 1 starved) and Clef three (2 crashed).
+- **They do not ignore the facts.** Neither ever chose a dead end while it had
+  a way out, nor passed up food it could safely eat. They die choosing between
+  options the facts rate as safe, which a single step's facts cannot warn about.
+- **Clef differs from the code reference on half its moves**, more than any
+  other model that reads the facts.
+
+### Real time
+
+`scripts/realtime.ts`, 3 seeds, 150-tick cap, asked through `/v1/systemone`.
+Clef was run at Slow only, since it is slower than even the Slow tick.
+
+*Corrected 2026-10-03.* The first version of this table was measured while the
+scripts' preload silently failed for decision-only models (§9), so the first
+game of each run began with the model cold. Only the rows run first, projection
+off, changed when re-measured with a working preload; the conclusions did not.
+The table shows the re-measured figures.
+
+| | speed | projection | ticks survived | food | alive | share | on time | timed out | died waiting |
+|---|---|---|---|---|---|---|---|---|---|
+| clef-flash | Normal | off | 7, 130, 150 | 3 | 1/3 | 48% | 0% | 144 | 1 |
+| | | on | 7, 39, 41 | 9 | 0/3 | 82% | 98% | 4 | 3 |
+| clef-flash | Slow | off | 112, 150, 150 | 22 | 2/3 | 98% | 100% | 0 | 0 |
+| | | on | 112, 150, 150 | 22 | 2/3 | 98% | 100% | 0 | 0 |
+| clef | Slow | off | 12, 130, 16 | 2 | 0/3 | 45% | 0% | 79 | 0 |
+| | | on | 67, 130, 144 | 6 | 0/3 | 93% | 98% | 6 | 1 |
+
+- **Clef Flash is like nimble at Normal** (§16). Its ~540 ms answers are
+  later than the 400 ms tick. Without projection none arrived on time, though
+  it survived one game; with projection it decides more but died in every
+  game, mostly waiting.
+- **At Slow it keeps up but chooses worse.** It made nearly every decision and
+  survived two games of three with 22 food, where nimble and the Gemma 4
+  heretic (§17) survived every game. Its loss at tick 112 was a choice, not
+  lateness.
+- **Clef is too slow for any speed.** At ~1.8 s against a 1,000 ms tick,
+  projection raises its share of decisions to 93%, but it died in all three
+  games.
+
+| | fast enough for Normal | fast enough for Slow | acts on the facts | survives without a clock |
+|---|---|---|---|---|
+| tev1 | yes, ~310 ms | yes | yes | 5/5 |
+| nimble | no, ~550 ms | yes | yes | 4/5 |
+| clef-flash | no, ~540 ms | yes | yes | 1/5 |
+| clef | no, ~1,790 ms | no | yes | 3/5 |
+
+Neither Clef model displaces tev1, which remains the only model here both fast
+enough for Normal speed and reliably alive.

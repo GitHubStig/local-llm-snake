@@ -16,7 +16,8 @@ receives here are the same inputs JEV receives in its
 models and JEV can be compared on equal information
 ([ADR-0012](docs/adr/0012-single-prompt-matching-jev.md)).
 
-Ollama's *decision* models (Ollama 0.35 and later, such as `tev1` and `nimble`)
+Ollama's *decision* models (Ollama 0.35 and later, such as `tev1`, `nimble`,
+and Cloudflare's `clef` and `clef-flash` from 0.35.1)
 are asked the same way JEV is: they are sent the board and the options, choose
 one, and return a probability for each
 ([ADR-0014](docs/adr/0014-decision-models-via-systemone.md)).
@@ -100,6 +101,9 @@ Measured on one Apple-silicon Mac; details in
   survived every game without a clock, never walking into a dead end, and at
   about 310 ms a move it plays Normal speed in real time: all three games
   measured survived to the cap. It is still too slow for Fast.
+- **Larger decision models are not better here.** Cloudflare's Clef Flash (9B)
+  and Clef (27B) read the facts but survived fewer games than tev1 without a
+  clock (1 and 3 of 5), at about 540 ms and 1.8 s a move.
 - **A mixture-of-experts chat model comes close.** A Gemma 4 26B-A4B build,
   which runs about 4B of its 26B parameters per token, judged as well as the
   large models at about 550 ms a move. It survived every game at Slow speed,
