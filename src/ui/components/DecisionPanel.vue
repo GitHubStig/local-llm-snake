@@ -74,6 +74,19 @@ const confidence = computed(() => {
 });
 const raw = computed(() => (meta.value?.raw as string | undefined) ?? null);
 
+/**
+ * The response laid out like the options above it. A chat model's text is not
+ * always JSON, so anything that does not parse is shown exactly as received.
+ */
+const response = computed(() => {
+  if (raw.value === null) return null;
+  try {
+    return JSON.stringify(JSON.parse(raw.value), null, 2);
+  } catch {
+    return raw.value;
+  }
+});
+
 /** Rare warnings, joined into one line of fixed height so they never shift anything. */
 const notes = computed(() =>
   [
@@ -108,7 +121,10 @@ const arrival = (lateness: number) =>
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-col gap-3">
+  <!-- A size container: once the panel is wide enough, what was sent moves
+       beside the numbers instead of below them, so it is on screen without
+       scrolling. -->
+  <div class="@container flex min-h-0 flex-col gap-3">
     <!-- Left-aligned, each box beside the first line of its label, so the boxes
          line up however the labels wrap. -->
     <div class="flex shrink-0 flex-col gap-1.5 text-[11px] leading-4 text-muted">
@@ -164,82 +180,90 @@ const arrival = (lateness: number) =>
       </span>
     </div>
 
-    <!-- Every row below is always rendered; only values change. Rows that came
-         and went with each tick made everything under them jump. -->
-    <div class="min-h-0 flex-1 overflow-auto">
-      <dl class="grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
-        <dt class="text-muted">This tick</dt>
-        <dd class="truncate font-mono">{{ lastMove?.direction ?? dash }}</dd>
-        <dt class="text-muted">Decided by</dt>
-        <dd class="truncate">{{ lastMove ? DECIDED_BY[lastMove.decidedBy] : dash }}</dd>
-      </dl>
+    <div
+      class="min-h-0 flex-1 overflow-auto @xl:grid @xl:grid-cols-2 @xl:gap-4 @xl:overflow-hidden"
+    >
+      <!-- Every row below is always rendered; only values change. Rows that came
+           and went with each tick made everything under them jump. -->
+      <div class="@xl:min-h-0 @xl:overflow-auto">
+        <dl class="grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+          <dt class="text-muted">This tick</dt>
+          <dd class="truncate font-mono">{{ lastMove?.direction ?? dash }}</dd>
+          <dt class="text-muted">Decided by</dt>
+          <dd class="truncate">{{ lastMove ? DECIDED_BY[lastMove.decidedBy] : dash }}</dd>
+        </dl>
 
-      <h3 class="mt-4 text-xs font-medium text-muted">The model's last decision</h3>
-      <dl class="mt-1.5 grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
-        <dt class="text-muted">Direction</dt>
-        <dd class="truncate font-mono">{{ lastDecision?.direction ?? dash }}</dd>
-        <dt class="text-muted">Latency</dt>
-        <dd class="truncate font-mono tabular-nums">{{ ms(lastDecision?.latencyMs) }}</dd>
-        <dt class="text-muted">of which model load</dt>
-        <dd class="truncate font-mono tabular-nums">{{ ms(meta?.loadMs) }}</dd>
-        <dt class="text-muted">Planned ahead</dt>
-        <dd class="truncate font-mono tabular-nums">
-          {{
-            lastDecision
-              ? lastDecision.horizon === 0
-                ? "no"
-                : `${lastDecision.horizon} ticks`
-              : dash
-          }}
-        </dd>
-        <dt class="text-muted">Arrived</dt>
-        <dd class="truncate font-mono tabular-nums">
-          {{ lastDecision ? arrival(lastDecision.lateness) : dash }}
-        </dd>
-        <dt class="text-muted">Prompt tokens</dt>
-        <dd class="truncate font-mono tabular-nums">
-          <template v-if="typeof meta?.promptTokens === 'number'">
-            {{ meta.promptTokens }}
-            <span v-if="typeof meta.cachedPromptTokens === 'number'" class="text-muted"
-              >({{ meta.cachedPromptTokens }} cached)</span
-            >
-          </template>
-          <template v-else>{{ dash }}</template>
-        </dd>
-        <dt class="text-muted">Confidence</dt>
-        <dd class="truncate font-mono tabular-nums">{{ confidence }}</dd>
-      </dl>
-
-      <!-- One line whatever the model: a decision model's probabilities are too
-           long for the value column, and a chat model has none. -->
-      <p class="mt-2 text-sm text-muted">Probabilities</p>
-      <p class="mt-1 truncate font-mono text-sm tabular-nums" :title="probabilities ?? undefined">
-        {{ probabilities ?? dash }}
-      </p>
-
-      <!-- Fixed at three lines: reasons vary in length, and a box that grew and
-           shrank with them moved everything below. -->
-      <p
-        class="mt-3 line-clamp-3 h-[4.625rem] overflow-hidden rounded-md border border-line px-2 py-1.5 text-sm"
-        :class="why ? '' : 'text-muted'"
-        :title="why ?? undefined"
-      >
-        {{ why ?? whyPlaceholder }}
-      </p>
-      <p class="mt-1 h-4 truncate text-xs text-food" :title="notes || undefined">{{ notes }}</p>
-
-      <h3 class="mt-4 text-xs font-medium text-muted">Why moves were not decided</h3>
-      <dl class="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-        <template v-for="(count, kind) in failures" :key="kind">
-          <dt class="text-muted">{{ FAILURE_LABEL[kind] ?? kind }}</dt>
-          <dd class="font-mono tabular-nums" :class="count > 0 ? 'text-text' : 'text-muted'">
-            {{ count }}
+        <h3 class="mt-4 text-xs font-medium text-muted">The model's last decision</h3>
+        <dl class="mt-1.5 grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+          <dt class="text-muted">Direction</dt>
+          <dd class="truncate font-mono">{{ lastDecision?.direction ?? dash }}</dd>
+          <dt class="text-muted">Latency</dt>
+          <dd class="truncate font-mono tabular-nums">{{ ms(lastDecision?.latencyMs) }}</dd>
+          <dt class="text-muted">of which model load</dt>
+          <dd class="truncate font-mono tabular-nums">{{ ms(meta?.loadMs) }}</dd>
+          <dt class="text-muted">Planned ahead</dt>
+          <dd class="truncate font-mono tabular-nums">
+            {{
+              lastDecision
+                ? lastDecision.horizon === 0
+                  ? "no"
+                  : `${lastDecision.horizon} ticks`
+                : dash
+            }}
           </dd>
-        </template>
-      </dl>
+          <dt class="text-muted">Arrived</dt>
+          <dd class="truncate font-mono tabular-nums">
+            {{ lastDecision ? arrival(lastDecision.lateness) : dash }}
+          </dd>
+          <dt class="text-muted">Prompt tokens</dt>
+          <dd class="truncate font-mono tabular-nums">
+            <template v-if="typeof meta?.promptTokens === 'number'">
+              {{ meta.promptTokens }}
+              <span v-if="typeof meta.cachedPromptTokens === 'number'" class="text-muted"
+                >({{ meta.cachedPromptTokens }} cached)</span
+              >
+            </template>
+            <template v-else>{{ dash }}</template>
+          </dd>
+          <dt class="text-muted">Confidence</dt>
+          <dd class="truncate font-mono tabular-nums">{{ confidence }}</dd>
+        </dl>
+
+        <!-- One line whatever the model: a decision model's probabilities are too
+           long for the value column, and a chat model has none. -->
+        <p class="mt-2 text-sm text-muted">Probabilities</p>
+        <p class="mt-1 truncate font-mono text-sm tabular-nums" :title="probabilities ?? undefined">
+          {{ probabilities ?? dash }}
+        </p>
+
+        <!-- Fixed at three lines: reasons vary in length, and a box that grew and
+           shrank with them moved everything below. -->
+        <p
+          class="mt-3 line-clamp-3 h-[4.625rem] overflow-hidden rounded-md border border-line px-2 py-1.5 text-sm"
+          :class="why ? '' : 'text-muted'"
+          :title="why ?? undefined"
+        >
+          {{ why ?? whyPlaceholder }}
+        </p>
+        <p class="mt-1 h-4 truncate text-xs text-food" :title="notes || undefined">{{ notes }}</p>
+
+        <h3 class="mt-4 text-xs font-medium text-muted">Why moves were not decided</h3>
+        <dl class="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-1 text-xs">
+          <template v-for="(count, kind) in failures" :key="kind">
+            <dt class="text-muted">{{ FAILURE_LABEL[kind] ?? kind }}</dt>
+            <dd class="font-mono tabular-nums" :class="count > 0 ? 'text-text' : 'text-muted'">
+              {{ count }}
+            </dd>
+          </template>
+        </dl>
+      </div>
 
       <!-- Last, because it is the one block whose height varies. -->
-      <details v-if="request" class="group mt-4 rounded-md border border-line">
+      <details
+        v-if="request"
+        open
+        class="group mt-4 rounded-md border border-line @xl:mt-0 @xl:min-h-0 @xl:self-start @xl:max-h-full @xl:overflow-auto"
+      >
         <summary
           class="cursor-pointer select-none px-2 py-1.5 text-xs font-medium text-muted hover:text-text"
         >
@@ -249,14 +273,18 @@ const arrival = (lateness: number) =>
           v-if="request.kind === 'decision'"
           class="flex flex-col gap-3 border-t border-line p-2"
         >
-          <section>
-            <h4 class="mb-1 text-[11px] text-muted">Options — changes every tick</h4>
-            <pre class="sent">{{ JSON.stringify(request.criteria, null, 2) }}</pre>
-          </section>
-          <section>
-            <h4 class="mb-1 text-[11px] text-muted">Response</h4>
-            <pre class="sent">{{ raw }}</pre>
-          </section>
+          <details open>
+            <summary class="cursor-pointer text-[11px] text-muted hover:text-text">
+              Options — changes every tick
+            </summary>
+            <pre class="sent mt-1">{{ JSON.stringify(request.criteria, null, 2) }}</pre>
+          </details>
+          <details open>
+            <summary class="cursor-pointer text-[11px] text-muted hover:text-text">
+              Response
+            </summary>
+            <pre class="sent mt-1">{{ response }}</pre>
+          </details>
           <details>
             <summary class="cursor-pointer text-[11px] text-muted hover:text-text">
               State — changes every tick
@@ -274,14 +302,18 @@ const arrival = (lateness: number) =>
           </p>
         </div>
         <div v-else class="flex flex-col gap-3 border-t border-line p-2">
-          <section>
-            <h4 class="mb-1 text-[11px] text-muted">User — changes every tick</h4>
-            <pre class="sent">{{ request.user }}</pre>
-          </section>
-          <section>
-            <h4 class="mb-1 text-[11px] text-muted">Response</h4>
-            <pre class="sent">{{ raw }}</pre>
-          </section>
+          <details open>
+            <summary class="cursor-pointer text-[11px] text-muted hover:text-text">
+              User — changes every tick
+            </summary>
+            <pre class="sent mt-1">{{ request.user }}</pre>
+          </details>
+          <details open>
+            <summary class="cursor-pointer text-[11px] text-muted hover:text-text">
+              Response
+            </summary>
+            <pre class="sent mt-1">{{ response }}</pre>
+          </details>
           <details>
             <summary class="cursor-pointer text-[11px] text-muted hover:text-text">
               System — identical every tick

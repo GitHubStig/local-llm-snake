@@ -56,7 +56,7 @@ const outcome = computed(() => {
        cannot fit: a zoomed-in page, or a very short window. -->
   <div class="h-dvh overflow-auto">
     <div
-      class="mx-auto flex min-h-full max-w-6xl flex-col gap-4 px-4 py-4 lg:h-full lg:min-h-[34rem]"
+      class="mx-auto flex min-h-full max-w-7xl flex-col gap-4 px-4 py-4 lg:h-full lg:min-h-[34rem]"
     >
       <header class="flex shrink-0 items-center justify-between gap-4">
         <div>
@@ -68,7 +68,9 @@ const outcome = computed(() => {
 
       <!-- Stacked below lg, the page scrolls; side by side, everything fits
            one screen. -->
-      <div class="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-1">
+      <div
+        class="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-rows-1"
+      >
         <section class="flex min-h-0 flex-col gap-3">
           <ControlBar class="shrink-0" />
 
