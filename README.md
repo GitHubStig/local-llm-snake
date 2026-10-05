@@ -26,10 +26,10 @@ You can also drive the snake yourself with the keyboard.
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="docs/images/playing-light.webp">
-  <img src="docs/images/playing-dark.webp" alt="tev1 playing at Normal speed: a 12×12 board with the snake and food on the left, and on the right the decision panel showing the model's last move, its latency, and its probability for each option.">
+  <img src="docs/images/playing-dark.webp" alt="Fourteen seconds of tev1 playing at Normal speed: a 12×12 board with the snake and food on the left, and on the right the decision panel updating each tick with the model's last move, its latency, its probability for each option, and beside them the options sent and the response.">
 </picture>
 
-*tev1, a 4B decision model, playing at Normal speed (400 ms a tick).*
+*tev1, a 4B decision model, playing at Normal speed (400 ms a tick), recorded from a live game.*
 
 ## Requirements
 
@@ -78,11 +78,6 @@ It has to be started by hand; the dropdown notes when it is missing.
 The decision panel shows each tick, the model's last decision, how far ahead it
 was planned and whether it arrived on time, why moves went undecided, and —
 under *What was sent* — the exact prompt and response.
-
-<img src="docs/images/decision-panel.webp" width="360" alt="The decision panel for tev1: the last move north, 327 ms latency, arrived on time, probabilities north 67%, east 24%, west 8%, and below, the options exactly as sent and the raw response.">
-
-*The panel for one of tev1's moves: its probability for each option, the
-options exactly as they were sent, and its raw answer.*
 
 ## What we have found
 
