@@ -294,7 +294,9 @@ at once, so selecting a model now preloads it. The same run afterwards:
 **57% controller share**, load down to 19 ms.
 
 Requests also send `keep_alive: "30m"`, since Ollama's 5 minute default would
-evict the model during any pause long enough to read the panel.
+evict the model during any pause long enough to read the panel. *(Since
+2026-10-07 the keep-alive is one minute, and resuming waits for the model to
+reload instead: ADR-0007.)*
 
 *Added 2026-10-03.* The empty-prompt preload does not work for decision-only
 models: since Ollama 0.35.1, `/api/generate` answers `clef-flash:latest` with

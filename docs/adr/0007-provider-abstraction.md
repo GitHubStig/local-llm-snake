@@ -166,7 +166,7 @@ Preloading on selection was not enough, for two reasons:
   game waits for the model to load and then starts by itself.** The button
   reads *Loading…* meanwhile, and pressing it again cancels. If the model
   cannot be loaded, the game does not start and the reason is shown. A game
-  resumed mid-way does not wait.
+  resumed mid-way does not wait. *(Since 2026-10-07 it does; see below.)*
 - **It failed silently for decision-only models.** Since Ollama 0.35.1,
   decision models such as Clef reject `/api/generate` with HTTP 400 ("does not
   support generate"), and `warm()` ignored the status. Decision models are now
@@ -175,6 +175,24 @@ Preloading on selection was not enough, for two reasons:
 
 `warm(model, { decision })` now resolves to whether the model loaded, and the
 measurement scripts stop if it did not.
+
+## Amendment, 2026-10-07: a one-minute keep-alive, and resume waits too
+
+Requests now carry `keep_alive: "1m"` rather than `"30m"`. Thirty minutes kept
+a model in memory long after play stopped: tev1 at bf16 occupies about 16 GB as
+`ollama ps` reports it, and nimble and clef-flash at bf16 more.
+
+The thirty minutes existed so that a pause to read the decision panel would not
+unload the model and crash the snake on resume. That is now handled the other
+way: **Play waits for the model whenever a model is driving, on resume as well
+as on a new game**, as it already did for a new game. If the model is loaded
+this costs one quick request; if it was unloaded during a pause, Play reads
+*Loading…* until it is back. The measurement scripts are unaffected, since
+they send requests without a pause longer than a minute.
+
+To free a model at once, `ollama stop <model>`. Decision models reject the
+usual `keep_alive: 0` request to `/api/generate`, and a `/v1/systemone` request
+would run a decision first, or load the model if it were not loaded.
 
 ## Consequences
 

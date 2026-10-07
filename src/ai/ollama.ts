@@ -9,8 +9,11 @@ import type {
 } from "./types.ts";
 
 const NS_PER_MS = 1e6;
-/** Longer than Ollama's 5 minute default, so a pause does not evict the model. */
-const KEEP_ALIVE = "30m";
+/**
+ * How long a model stays loaded after its last request. Short, so memory is
+ * freed soon after a game stops; play waits for a reload (ADR-0007).
+ */
+const KEEP_ALIVE = "1m";
 
 type ChatResponse = {
   message?: { content?: string; thinking?: string | null };

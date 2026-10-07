@@ -164,13 +164,14 @@ export const useGame = createGlobalState(() => {
   }
 
   /**
-   * A new game with a model driving waits for the model to load. Once loaded,
-   * that costs one quick request; a game resumed mid-way does not wait.
+   * With a model driving, play waits for the model to load, whether the game
+   * is new or resumed: after a pause longer than the keep-alive it has been
+   * unloaded (ADR-0007). Once loaded, that costs one quick request.
    */
   async function play() {
     if (state.value.outcome !== null || loadingModel.value) return;
     loadError.value = null;
-    if (driver.value === "model" && selected.value && state.value.tick === 0) {
+    if (driver.value === "model" && selected.value) {
       const { providerId, modelId } = selected.value;
       const token = ++startToken;
       loadingModel.value = true;
