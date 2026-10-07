@@ -101,6 +101,15 @@ decision models report only the `decision` capability, which is all the
 routing checks. Clef also accepts images; they are not sent, since JEV gets
 text only (ADR-0012).
 
+*Added 2026-10-07* ([findings.md](../findings.md) §19). Ollama 0.40.0 runs the
+decision models' MLX tags on Apple Silicon, again with no change to the code.
+The bf16 tags are the fastest, since a decision model only reads its request:
+tev1 answers in about 179 ms, nimble and clef-flash in about 326 ms. That makes
+nimble and clef-flash fast enough for Normal speed, where nimble survived every
+game with the most food, and tev1 fast enough for Fast (now 200 ms, ADR-0001).
+The note above that no trimming makes Fast workable was written for tev1 on
+GGUF at the old 150 ms tick.
+
 ## Consequences
 
 - The open thread asking for a fast, fact-reading local model is closed: tev1

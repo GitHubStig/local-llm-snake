@@ -840,6 +840,9 @@ Normal speed and able to act on the facts:
 | nimble | no, ~550 ms | yes |
 | llama3:latest | yes, ~320 ms | no |
 
+*Corrected 2026-10-07* (§19): on MLX at bf16, nimble answers in about 326 ms and
+plays Normal speed.
+
 ### A more compact request: measured, not adopted
 
 Measured **2026-09-30**, tev1, warm, requests to `/v1/systemone` directly. Each
@@ -970,6 +973,9 @@ A mixture of experts closes much of the gap between the large dense models
 and a decision model: judgement like gemma4:31b's at under half its latency.
 tev1 remains the only model here fast enough for Normal speed.
 
+*Corrected 2026-10-07* (§19): on MLX at bf16, nimble and clef-flash also keep
+up at Normal, and tev1 at the new 200 ms Fast tick.
+
 ---
 
 ## 18. Clef and Clef Flash, and Ollama 0.35.1
@@ -1059,6 +1065,10 @@ The table shows the re-measured figures.
 Neither Clef model displaces tev1, which remains the only model here both fast
 enough for Normal speed and reliably alive.
 
+*Corrected 2026-10-07* (§19): on Ollama 0.40.0's MLX runner at bf16, clef-flash
+answers in about 326 ms and survived every real-time game at Normal, though
+with little food; nimble did the same with the most food of any model.
+
 ---
 
 ## 19. MLX variants, and Ollama 0.40.0
@@ -1141,6 +1151,34 @@ out or passed up food it could safely eat.
 - **With bf16, nimble and clef-flash answer well inside the 400 ms Normal tick**
   (326 ms), close to where tev1 was on GGUF. tev1 at bf16 (179 ms) is still
   slower than the 150 ms Fast tick.
+
+### Real time
+
+`scripts/realtime.ts`, 3 seeds, 150-tick cap, asked through `/v1/systemone`,
+bf16 tags, every model unloaded and the GPU idle first. Fast is the new 200 ms
+tick (ADR-0001).
+
+| | speed | projection | ticks survived | food | alive | share | on time | timed out | died waiting |
+|---|---|---|---|---|---|---|---|---|---|
+| tev1 bf16 | Fast | off | 110, 150, 150 | 41 | 2/3 | 96% | 99% | 3 | 0 |
+| | | on | 150, 150, 150 | 46 | 3/3 | 97% | 100% | 0 | 0 |
+| nimble bf16 | Normal | off | 150, 150, 150 | 47 | 3/3 | 98% | 100% | 0 | 0 |
+| | | on | 150, 150, 150 | 50 | 3/3 | 98% | 100% | 0 | 0 |
+| clef-flash bf16 | Normal | off | 150, 150, 150 | 28 | 3/3 | 99% | 100% | 0 | 0 |
+| | | on | 150, 150, 150 | 28 | 3/3 | 99% | 100% | 0 | 0 |
+
+- **tev1 plays Fast.** With projection it does at 200 ms what Q8_0 did at
+  Normal in §16: every game to the cap, 46 food, every answer on time. Without
+  projection it lost one game, by a move it chose, not by waiting.
+- **nimble plays Normal, and eats the most.** On GGUF it died in every game at
+  Normal (§16). At bf16 every answer was on time and it survived all six games,
+  with 50 food with projection: the most of any model at Normal in real time.
+- **clef-flash survives Normal but eats little,** 28 food, about half the
+  others, in keeping with its weaker judgement without a clock.
+
+This corrects the closing claims of §16, §17 and §18 that tev1 is the only
+model fast enough for Normal speed: on MLX at bf16, nimble and clef-flash are
+too, and tev1 is fast enough for Fast.
 
 ### Why full precision is faster: the cost of reading the request
 

@@ -95,7 +95,12 @@ Measured on one Apple-silicon Mac; details in
 - **tev1, a 4B decision model, is both fast and able to use the facts.** It
   survived every game without a clock, never walking into a dead end, and at
   about 310 ms a move it plays Normal speed in real time: all three games
-  measured survived to the cap. It is still too slow for Fast.
+  measured survived to the cap.
+- **On Apple Silicon, the full-precision MLX builds are the fastest.** With
+  Ollama 0.40.0, `tev1:4b-mlx-bf16` answers in about 180 ms and plays Fast
+  speed; `nimble:9b-mlx-bf16` answers in about 330 ms and plays Normal speed,
+  eating the most food of any model there. A decision model only reads its
+  request, and reading is faster at full precision than at 4 or 8 bits.
 - **Larger decision models are not better here.** Cloudflare's Clef Flash (9B)
   and Clef (27B) read the facts but survived fewer games than tev1 without a
   clock (1 and 3 of 5), at about 540 ms and 1.8 s a move.
