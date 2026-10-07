@@ -58,8 +58,9 @@ layout bugs in this project were invisible in the CSS and obvious on screen.
   temperature 0. `scripts/realtime.ts` drives the real game loop, so its results
   vary with timing.
 - Local models are slow and memory-hungry. Run measurements one at a time, and
-  keep a browser closed while timing a real-time run: anything competing for
-  the machine skews the latencies.
+  check the GPU is idle before timing a run: anything else using it skews the
+  latencies. `ioreg -r -d 1 -c IOAccelerator | grep -o '"Device Utilization %"=[0-9]*'`
+  shows its current use without `sudo`.
 - When a result contradicts an earlier finding, correct the earlier finding.
   Several findings in this project were overturned by later measurements, and
   the docs say so where it happened.
