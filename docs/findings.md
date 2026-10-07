@@ -1127,11 +1127,8 @@ The library has no 4-bit tag of clef-flash. No run chose a dead end with a way
 out or passed up food it could safely eat.
 
 - **Full precision is the fastest, not the slowest.** bf16 is 14–18% faster than
-  mxfp8 for every model, and 4-bit gains only 4–5% over mxfp8. The likely
-  reason, not measured: a decision model only reads the request and scores the
-  options, generating nothing. Smaller weights chiefly speed up generation,
-  which waits on memory; reading a request is limited by arithmetic, which
-  4- and 8-bit weights add to by having to be unpacked first.
+  mxfp8 for every model, and 4-bit gains only 4–5% over mxfp8. The lead comes
+  from reading the request, as measured below.
 - **Precision does not visibly change play.** tev1 and nimble stay within a few
   food in every format. clef-flash at bf16 plays much as it does on Q8_0, which
   suggests its better mxfp8 result above was chance.
@@ -1140,6 +1137,63 @@ out or passed up food it could safely eat.
 - **With bf16, nimble and clef-flash answer well inside the 400 ms Normal tick**
   (326 ms), close to where tev1 was on GGUF. tev1 at bf16 (179 ms) is still
   slower than the 150 ms Fast tick.
+
+### Why full precision is faster: the cost of reading the request
+
+A decision model only reads the request and scores the options; it generates
+nothing. Quantizing the weights is known to speed up generation, which waits on
+memory, but not reading a prompt (*prefill*), which is limited by arithmetic.
+There, 4- and 8-bit weights must also be unpacked before use, so they can be
+slower than full precision ([dev.to][q1], [Spheron][q2], and on Apple Silicon
+[arXiv 2508.08531][q3]). Apple reports that on the M5, whose GPU has matrix
+units for this, time to first token is compute-bound and its BF16 and 4-bit
+models gained about equally (3.62× and 3.97× over the M4) ([Apple][q4]).
+Nothing found applies this to decision models, which do only prefill.
+
+To test it, requests of four lengths were sent to each format through
+`/v1/systemone`: a near-empty request and three with filler rows in `state`,
+each with a unique value so none was answered from cache (§16). Eight
+repetitions per length, the order rotated, each model unloaded and the GPU idle
+before it. Medians, and the cost per token from a straight-line fit:
+
+| | ~120 tokens | ~500 | ~1,100 | ~1,900 | per 1,000 tokens |
+|---|---|---|---|---|---|
+| tev1 Q8_0 | 120 ms | 301 ms | 668 ms | 1,157 ms | 580 ms |
+| tev1 nvfp4 | 92 ms | 191 ms | 434 ms | 759 ms | 376 ms |
+| tev1 mxfp8 | 95 ms | 200 ms | 452 ms | 791 ms | 392 ms |
+| tev1 bf16 | **64 ms** | **171 ms** | **395 ms** | **685 ms** | **348 ms** |
+| nimble Q8_0 | 275 ms | 616 ms | 1,305 ms | 2,121 ms | 1,035 ms |
+| nimble nvfp4 | 116 ms | 345 ms | 814 ms | 1,433 ms | 737 ms |
+| nimble mxfp8 | 122 ms | 356 ms | 837 ms | 1,467 ms | 753 ms |
+| nimble bf16 | **117 ms** | **304 ms** | **720 ms** | **1,234 ms** | **628 ms** |
+| clef-flash Q8_0 | 256 ms | 513 ms | 1,191 ms | 2,125 ms | 1,057 ms |
+| clef-flash mxfp8 | 116 ms | 348 ms | 824 ms | 1,423 ms | 734 ms |
+| clef-flash bf16 | 127 ms | **316 ms** | **749 ms** | **1,280 ms** | **650 ms** |
+
+The library has no 4-bit clef-flash. The longest requests stop short of tev1's
+2,050-token context; a longer one was rejected with HTTP 400.
+
+- **bf16's lead grows with the length of the request.** Each token read costs
+  17% less than with mxfp8 for nimble and 11% less for tev1 and clef-flash. On
+  a near-empty request nimble's MLX formats take the same time, and clef-flash
+  at bf16 is slightly slower than at mxfp8, so for both the whole lead is in
+  reading. tev1 at bf16 also starts about 30 ms ahead.
+- **4-bit costs about as much per token as 8-bit,** though its weights are half
+  the size: reading the request is not limited by memory.
+- **MLX reads 1.4–1.5× faster than GGUF** at the same 8-bit precision.
+- This locates the difference but cannot say what causes it inside Ollama:
+  unpacking the weights, or less efficient code for the quantized formats.
+
+Generation is a different matter. An open Ollama issue reports a bf16 MLX chat
+model generating about 1 token/s on an M2 Ultra ([#18823][q5]), and advice
+circulating for chat models is to avoid bf16 MLX builds for now. That concerns
+generation, which decision models do not do.
+
+[q1]: https://dev.to/ji_ai/why-int4-weight-only-quantization-doesnt-speed-up-prefill-1b45
+[q2]: https://www.spheron.network/blog/myth-quantization-doesn-t-always-make-inference-faster/
+[q3]: https://arxiv.org/pdf/2508.08531
+[q4]: https://machinelearning.apple.com/research/exploring-llms-mlx-m5
+[q5]: https://github.com/ollama/ollama/issues/18823
 
 ### Ollama 0.40.0 changed the GGUF results too
 
