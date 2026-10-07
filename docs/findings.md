@@ -779,6 +779,10 @@ through `/v1/systemone`:
 Both use the facts as the large chat models in §13 do. Neither ever chose a
 dead end with a way out, or passed up food it could safely eat.
 
+*Re-measured 2026-10-07 on Ollama 0.40.0* (§19): the same Q8_0 files now give
+tev1 88 food and nimble 106 food, 5/5 alive, at 602 ms. The upgrade changed
+their moves, not only the MLX variants'.
+
 ### Latency: the endpoint caches only exact repeats
 
 A single probe earlier suggested tev1 answers in about 40 ms. That was an
@@ -1005,6 +1009,10 @@ the same result as in §16: 96 food, 5/5 alive, 312 ms median.
 - **Clef differs from the code reference on half its moves**, more than any
   other model that reads the facts.
 
+*Re-measured 2026-10-07 on Ollama 0.40.0* (§19): clef-flash Q8_0 repeats
+these games exactly; tev1 Q8_0 now eats 88 food rather than 96. On MLX,
+clef-flash answers in 405 ms and survived 3 games of 5.
+
 ### Real time
 
 `scripts/realtime.ts`, 3 seeds, 150-tick cap, asked through `/v1/systemone`.
@@ -1046,3 +1054,67 @@ The table shows the re-measured figures.
 
 Neither Clef model displaces tev1, which remains the only model here both fast
 enough for Normal speed and reliably alive.
+
+---
+
+## 19. MLX variants, and Ollama 0.40.0
+
+Measured **2026-10-07** with **Ollama 0.40.0** on an Apple M5 Pro with 48 GB,
+which runs models on MLX on Apple Silicon. The library now offers MLX tags of
+the decision models beside the GGUF ones; `ollama show` reports their format as
+`safetensors`. Each model's `mxfp8` tag was compared with the Q8_0 GGUF copy
+already installed, both 8-bit, so that any difference comes from the runtime
+and not from precision.
+
+| | GGUF tag | MLX tag | MLX size on disk |
+|---|---|---|---|
+| tev1 | `latest` (Q8_0) | `4b-mxfp8` | 4.4 GB |
+| nimble | `latest` (Q8_0) | `9b-mxfp8` | 9.3 GB |
+| clef-flash | `latest` (Q8_0) | `9b-mxfp8` | 12.4 GB |
+
+All report `decision` and are routed through `/v1/systemone` with no change to
+the code. On 0.40.0 clef-flash also reports `vision`, in both formats; routing
+checks only `decision`. Before each run the GPU's utilisation was checked to be
+at most 5% for three seconds running.
+
+### Judgement, no clock
+
+`scripts/eval-prompt.ts`, 5 seeds × 200 ticks, the same seeds as §13, §16 and
+§18, one model at a time, Q8_0 then MLX:
+
+| | ticks survived | food | alive | into dead end | passed food | differs from code | median |
+|---|---|---|---|---|---|---|---|
+| code reference | 200 ×5 | 106 | 5/5 | 0% | 0% | — | — |
+| tev1 Q8_0 | 200 ×5 | 88 | 5/5 | 0% | 0% | 36% | 314 ms |
+| tev1 MLX | 200 ×5 | 88 | 5/5 | 0% | 0% | 33% | **210 ms** |
+| nimble Q8_0 | 200 ×5 | 106 | 5/5 | 0% | 0% | 23% | 602 ms |
+| nimble MLX | 200 ×5 | 105 | 5/5 | 0% | 0% | 27% | **407 ms** |
+| clef-flash Q8_0 | 112, 160, 200, 178, 126 | 59 | 1/5 | 0% | 0% | 36% | 533 ms |
+| clef-flash MLX | 200, 200, 200, 178, 138 | 81 | 3/5 | 0% | 0% | 35% | **405 ms** |
+
+- **MLX is about a third faster for every model**: 33% for tev1, 32% for
+  nimble, 24% for clef-flash, at the same 8-bit precision.
+- **It changes the moves, without a consistent direction.** tev1 and nimble
+  play as well on MLX as on GGUF. clef-flash did better (81 food and 3 of 5
+  alive, against 59 and 1), but five games cannot tell that from chance: once
+  one move differs, the rest of the game differs too.
+- **nimble and clef-flash on MLX now answer at about the Normal tick** (400 ms),
+  where on GGUF they were well over it. Whether that is enough to play Normal
+  speed is a question for `realtime.ts`, not yet run.
+- No model chose a dead end with a way out or passed up food it could safely
+  eat, in either format.
+
+### Ollama 0.40.0 changed the GGUF results too
+
+The Q8_0 files are the ones measured in §16 and §18, at temperature 0 on the
+same seeds, yet two of the three play differently on 0.40.0:
+
+| Q8_0 | before | Ollama 0.40.0 |
+|---|---|---|
+| tev1 | 96 food, 5/5, 31% differs, 312 ms (0.35.1) | 88 food, 5/5, 36% differs, 314 ms |
+| nimble | 99 food, 4/5, 20% differs, 548 ms (0.35.0) | 106 food, 5/5, 23% differs, 602 ms |
+| clef-flash | 59 food, 1/5, 36% differs, 540 ms (0.35.1) | the same games, 533 ms |
+
+Results from different Ollama versions are therefore not directly comparable,
+even for an unchanged model file. Comparisons in this section are all on 0.40.0.
+
