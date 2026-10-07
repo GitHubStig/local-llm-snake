@@ -8,6 +8,9 @@
  *
  * Ollama decision models (capability `decision`) are asked through
  * /v1/systemone, as the app asks them.
+ *
+ * First, every model Ollama holds is unloaded and the GPU left to go idle
+ * (scripts/quiet.ts).
  */
 import { readFileSync } from "node:fs";
 
@@ -19,6 +22,7 @@ import { createOllamaProvider, listedModel } from "../src/ai/ollama.ts";
 import { createOpenAIProvider } from "../src/ai/openai.ts";
 import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
 import type { PromptFile } from "../src/ai/prompt.ts";
+import { quietMachine } from "./quiet.ts";
 
 const model = process.argv[2] ?? "tev1:latest";
 const speed = (process.argv[3] ?? "normal") as Speed;
@@ -89,6 +93,7 @@ const median = (xs: number[]) =>
   xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : 0;
 const pct = (n: number, d: number) => (d ? `${Math.round((100 * n) / d)}%` : "--");
 
+await quietMachine();
 if (!(await route.provider.warm(route.id, { decision: isDecisionModel }))) {
   throw new Error(`could not load ${model}`);
 }

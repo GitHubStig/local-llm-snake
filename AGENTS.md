@@ -56,11 +56,13 @@ layout bugs in this project were invisible in the CSS and obvious on screen.
 
 - `scripts/eval-prompt.ts` measures judgement with no clock and is repeatable at
   temperature 0. `scripts/realtime.ts` drives the real game loop, so its results
-  vary with timing.
+  vary with timing. `scripts/prefill-latency.ts` times decision requests of
+  increasing length, separating a request's fixed cost from its cost per token.
 - Local models are slow and memory-hungry. Run measurements one at a time, and
   check the GPU is idle before timing a run: anything else using it skews the
   latencies. `ioreg -r -d 1 -c IOAccelerator | grep -o '"Device Utilization %"=[0-9]*'`
-  shows its current use without `sudo`.
+  shows its current use without `sudo`. The measurement scripts unload every
+  model and wait for an idle GPU before each model (`scripts/quiet.ts`).
 - When a result contradicts an earlier finding, correct the earlier finding.
   Several findings in this project were overturned by later measurements, and
   the docs say so where it happened.

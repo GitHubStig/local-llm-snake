@@ -1150,9 +1150,9 @@ units for this, time to first token is compute-bound and its BF16 and 4-bit
 models gained about equally (3.62× and 3.97× over the M4) ([Apple][q4]).
 Nothing found applies this to decision models, which do only prefill.
 
-To test it, requests of four lengths were sent to each format through
-`/v1/systemone`: a near-empty request and three with filler rows in `state`,
-each with a unique value so none was answered from cache (§16). Eight
+To test it, `scripts/prefill-latency.ts` sent requests of four lengths to each
+format through `/v1/systemone`: a near-empty request and three with filler rows
+in `state`, each with a unique value so none was answered from cache (§16). Eight
 repetitions per length, the order rotated, each model unloaded and the GPU idle
 before it. Medians, and the cost per token from a straight-line fit:
 

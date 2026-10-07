@@ -18,6 +18,9 @@
  * Ollama models with the `decision` capability (Ollama 0.35+, e.g. tev1 and
  * nimble) are asked through /v1/systemone with jev-decision.json, as the app
  * asks them; every other model gets the chat prompt.
+ *
+ * Before each model, every model Ollama holds is unloaded and the GPU left to
+ * go idle (scripts/quiet.ts).
  */
 import { readFileSync } from "node:fs";
 
@@ -29,6 +32,7 @@ import { createOpenAIProvider } from "../src/ai/openai.ts";
 import { ModelController } from "../src/ai/controller.ts";
 import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
 import type { PromptFile } from "../src/ai/prompt.ts";
+import { quietMachine } from "./quiet.ts";
 
 const models = (process.argv[2] ?? "tev1:latest").split(",");
 const seedCount = Number(process.argv[3] ?? 5);
@@ -160,6 +164,7 @@ console.log(
 
 for (const model of models) {
   if (model !== "code") {
+    await quietMachine();
     const decision = decisionModels.has(fullModelName(model));
     if (!(await route(model).provider.warm(route(model).id, { decision }))) {
       throw new Error(`could not load ${model}`);
