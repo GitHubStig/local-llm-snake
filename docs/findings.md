@@ -1104,6 +1104,43 @@ at most 5% for three seconds running.
 - No model chose a dead end with a way out or passed up food it could safely
   eat, in either format.
 
+### Precision: 4-bit, 8-bit and full
+
+The other MLX tags of the same models, measured the same way. For these runs,
+and a repeat of the mxfp8 runs, every loaded model was unloaded first: the runs
+above had left the previous model in memory. That had cost the mxfp8 runs only
+2–10 ms at the median, with identical games, so the mxfp8 rows below are the
+repeat.
+
+| | size on disk | ticks survived | food | alive | differs from code | median |
+|---|---|---|---|---|---|---|
+| tev1 nvfp4 | 3.1 GB | 200 ×5 | 94 | 5/5 | 39% | 200 ms |
+| tev1 mxfp8 | 4.4 GB | 200 ×5 | 88 | 5/5 | 33% | 208 ms |
+| tev1 bf16 | 8.4 GB | 200 ×5 | 93 | 5/5 | 36% | **179 ms** |
+| nimble nvfp4 | 6.9 GB | 200 ×5 | 104 | 5/5 | 24% | 379 ms |
+| nimble mxfp8 | 9.3 GB | 200 ×5 | 105 | 5/5 | 27% | 397 ms |
+| nimble bf16 | 17.9 GB | 200, 200, 194, 200, 200 | 104 | 4/5 | 26% | **326 ms** |
+| clef-flash mxfp8 | 12.4 GB | 200, 200, 200, 178, 138 | 81 | 3/5 | 35% | 399 ms |
+| clef-flash bf16 | 19.1 GB | 156, 160, 200, 178, 126 | 65 | 1/5 | 37% | **326 ms** |
+
+The library has no 4-bit tag of clef-flash. No run chose a dead end with a way
+out or passed up food it could safely eat.
+
+- **Full precision is the fastest, not the slowest.** bf16 is 14–18% faster than
+  mxfp8 for every model, and 4-bit gains only 4–5% over mxfp8. The likely
+  reason, not measured: a decision model only reads the request and scores the
+  options, generating nothing. Smaller weights chiefly speed up generation,
+  which waits on memory; reading a request is limited by arithmetic, which
+  4- and 8-bit weights add to by having to be unpacked first.
+- **Precision does not visibly change play.** tev1 and nimble stay within a few
+  food in every format. clef-flash at bf16 plays much as it does on Q8_0, which
+  suggests its better mxfp8 result above was chance.
+- **On MLX, repeats are exact.** The repeated mxfp8 runs played the same games
+  as the first, move for move.
+- **With bf16, nimble and clef-flash answer well inside the 400 ms Normal tick**
+  (326 ms), close to where tev1 was on GGUF. tev1 at bf16 (179 ms) is still
+  slower than the 150 ms Fast tick.
+
 ### Ollama 0.40.0 changed the GGUF results too
 
 The Q8_0 files are the ones measured in §16 and §18, at temperature 0 on the
