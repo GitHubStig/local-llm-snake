@@ -15,7 +15,13 @@ be deferred.
 The game runs on a real-time tick. Each tick has a deadline; if no direction is
 available when it expires, **the snake continues straight**.
 
-Speed presets: slow 1000ms, normal 400ms, fast 150ms, turbo 60ms.
+Speed presets: slow 1000ms, normal 400ms, fast 200ms, turbo 100ms.
+
+*Amended 2026-10-07.* Fast was 150ms and Turbo 60ms. Turbo was faster than any
+local model here answers and than a person can comfortably steer on a 12×12
+board, and the step from Normal to Fast was much larger than the others. The
+presets now roughly halve at each step. Measurements made before this date at
+Fast or Turbo used the old ticks (findings.md).
 
 `Step` advances exactly one tick and is active only while paused.
 

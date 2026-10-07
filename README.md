@@ -66,7 +66,7 @@ It has to be started by hand; the dropdown notes when it is missing.
   labels such as *slow* or *avoid*, and once a model has played, its measured
   latency. Nothing is ever blocked — watching an unsuitable model fail is part
   of the point.
-- **Speed** sets the tick, from Slow (1000 ms) to Turbo (60 ms). A model only
+- **Speed** sets the tick, from Slow (1000 ms) to Turbo (100 ms). A model only
   keeps up if it answers within about a tick.
 - **Plan ahead for the model's latency** sends a slow model the board as it
   will be when its answer lands, rather than as it is now

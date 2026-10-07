@@ -10,6 +10,10 @@ Deno 2.9.7, Node 24.19.0, Bun 1.4.2, Vite 8.3.0. Model calls used
 JSON schema, with the model already resident unless stated. Single sample per
 cell at temperature 0 — deterministic, but without confidence intervals.
 
+Until 2026-10-07 the Fast tick was 150 ms and Turbo 60 ms; they are now 200 ms
+and 100 ms (ADR-0001). Every Fast or Turbo result in this file before §19 was
+measured at the old ticks.
+
 ---
 
 ## 1. The `think` parameter — thinking is ON by default

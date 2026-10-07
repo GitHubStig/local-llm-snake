@@ -7,7 +7,7 @@ the wider ecosystem, the entry says which meaning applies here.
 
 One advance of the game clock. Under ADR-0001 ticks fire on a timer regardless
 of whether a controller has answered. Tick length is the speed setting: slow
-1000ms, normal 400ms, fast 150ms, turbo 60ms.
+1000ms, normal 400ms, fast 200ms, turbo 100ms.
 
 ### Deadline
 

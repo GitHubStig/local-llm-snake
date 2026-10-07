@@ -15,7 +15,7 @@ export const systemClock: Clock = {
   clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
 };
 
-export const SPEEDS = { slow: 1000, normal: 400, fast: 150, turbo: 60 } as const;
+export const SPEEDS = { slow: 1000, normal: 400, fast: 200, turbo: 100 } as const;
 export type Speed = keyof typeof SPEEDS;
 
 /** Why a tick was not decided by the controller (ADR-0009, ADR-0013). */
