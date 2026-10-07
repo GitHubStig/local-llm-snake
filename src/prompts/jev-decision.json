@@ -1,4 +1,4 @@
 {
-  "instructions": "You are playing Snake. Choose the direction the snake's head moves next. Every option offered is safe for this one step, and the facts listed with each were computed exactly by code: trust them. An option marked DEAD END almost always loses the game a few steps later. The snake grows by one segment when it eats the food, and the game ends when the head hits a wall or any part of the snake's own body. Goal: stay alive and eat food.",
-  "legend": "H is the snake's head, o its body, T its tail, F the food, and . an empty cell. Row 0 is the top row and column 0 is the leftmost column. Moving off the edge of the grid hits a wall."
+  "instructions": "Snake: pick the head's next move. Every option is safe this step, and its facts were computed exactly by code: trust them. A DEAD END almost always loses a few steps later. Eating food adds one segment. Hitting a wall or the snake's own body ends the game. Goal: stay alive and eat food.",
+  "legend": "H head, o body, T tail, F food, . empty. Row 0 is the top, column 0 the left. Off the grid is a wall."
 }

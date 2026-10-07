@@ -37,8 +37,18 @@ The request carries exactly the information the chat prompt does, so parity
 - **`instructions`:** the rules and the goal, from
   `src/prompts/jev-decision.json`, editable without touching code.
 - **`criteria`:** one entry per safe move, named by direction, described by the
-  same exact facts as the chat prompt's option lines, from the same function
-  (`describeFacts` in `src/ai/prompt.ts`).
+  same exact facts as the chat prompt's option lines, in fewer words
+  (`describeFactsCompact` in `src/ai/prompt.ts`).
+
+*Amended 2026-10-07.* Until then the request used the chat prompt's own wording
+for the facts (`describeFacts`) and longer instructions and legend. They were
+replaced by a tight wording that states the same facts, which a test checks
+number for number on every option, so parity (ADR-0012) still holds; only the
+words are fewer. The request is 394 tokens against 489 and, since a decision
+model's latency is mostly the tokens it reads, 13–15% faster, with no loss of
+play ([findings](../findings.md) §19). The fuller wording is not kept as an
+option; it is in the git history. Chat models keep `describeFacts`, the wording
+they were measured with.
 
 Everything shared with the chat path stays shared: the analysis, the forced
 move when fewer than two moves are safe (`forcedMove`), the direction names,
@@ -60,7 +70,8 @@ no reason, so the *Ask why* setting does not apply to them.
   ordering helps ([findings](../findings.md) §16).
 - **Dropping the board from `state` to cut latency.** It saves about 70 ms of
   ~310, but the board is part of what JEV receives.
-- **A more compact request.** *Measured 2026-09-30, not adopted*
+- **A more compact request.** *Measured 2026-09-30, not adopted; adopted
+  2026-10-07 (see the amendment under Decision).*
   ([findings](../findings.md) §16). Encoding `state` differently saves nothing:
   the endpoint renders it into its own text. Tighter wording of the
   instructions, legend and option facts, with the same information, cut the

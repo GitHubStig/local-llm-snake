@@ -884,6 +884,10 @@ answers well inside the 400 ms tick, and at Fast speed 250 ms is still too
 slow. It is worth revisiting if something needs the headroom, such as a second
 request loop for shadow mode.
 
+*Adopted 2026-10-07* (§19): rebuilt and re-measured on MLX at bf16, a tight
+request made tev1 and nimble faster without loss of play, and it replaced the
+fuller wording.
+
 ### Correction: the first figures in this section were measured through chat
 
 The first version of this section, committed in `40de8d8`, reported tev1 and
@@ -1236,6 +1240,44 @@ generation, which decision models do not do.
 [q3]: https://arxiv.org/pdf/2508.08531
 [q4]: https://machinelearning.apple.com/research/exploring-llms-mlx-m5
 [q5]: https://github.com/ollama/ollama/issues/18823
+
+### A tight request, adopted
+
+Since a decision model's latency is mostly the tokens it reads, the compact
+request measured and set aside in §16 was rebuilt: shorter instructions and
+legend in `jev-decision.json`, and each option's facts in fewer words
+(`describeFactsCompact`). The facts are the same, number for number, which
+a test checks on every option (ADR-0012). On the first board of seed 1000 the
+request is 394 tokens against 489.
+
+Measured the same way as the bf16 runs above, the same day:
+
+| bf16, no clock | request | ticks survived | food | alive | differs from code | median |
+|---|---|---|---|---|---|---|
+| tev1 | full | 200 ×5 | 93 | 5/5 | 36% | 179 ms |
+| | tight | 200 ×5 | 101 | 5/5 | 35% | **152 ms** |
+| nimble | full | 200, 200, 194, 200, 200 | 104 | 4/5 | 26% | 326 ms |
+| | tight | 200 ×5 | 105 | 5/5 | 23% | **285 ms** |
+
+| tev1 bf16, Fast | request | projection | ticks survived | food | alive | share | on time | timed out |
+|---|---|---|---|---|---|---|---|---|
+| | full | off | 110, 150, 150 | 41 | 2/3 | 96% | 99% | 3 |
+| | | on | 150, 150, 150 | 46 | 3/3 | 97% | 100% | 0 |
+| | tight | off | 150, 150, 150 | 47 | 3/3 | 97% | 100% | 0 |
+| | | on | 150, 150, 150 | 47 | 3/3 | 97% | 100% | 0 |
+
+- **13–15% faster,** 27 ms for tev1 and 41 ms for nimble, close to the
+  ~0.35 ms and ~0.63 ms per token measured above.
+- **No loss of play.** On these seeds both models did slightly better, with
+  more food and every game survived; five games cannot show that the tight
+  request is better, only that it is not worse. On GGUF in §16 it had eaten 92
+  food against 96.
+- **tev1 plays Fast without projection,** every answer on time.
+- tev1 at 152 ms is still well short of Turbo's 100 ms tick.
+
+It replaced the fuller wording for the app and the scripts, which is no longer
+kept as an option (ADR-0014). Every decision-model result before this
+subsection used the fuller wording.
 
 ### Ollama 0.40.0 changed the GGUF results too
 

@@ -49,9 +49,9 @@ export function renderGrid(view: GameView): string {
 }
 
 /**
- * The exact facts about one option, as a phrase list. Shared by the chat
- * prompt and the decision request, so both kinds of model are told the same
- * things (ADR-0012, ADR-0014).
+ * The exact facts about one option, as a phrase list, for the chat prompt.
+ * Decision requests state the same facts in fewer words (`describeFactsCompact`),
+ * so both kinds of model are told the same things (ADR-0012, ADR-0014).
  */
 export function describeFacts(f: MoveFacts): string {
   const parts = [
@@ -68,6 +68,27 @@ export function describeFacts(f: MoveFacts): string {
   } else if (f.canReachTail) {
     parts.push("the tail can still be followed out");
   }
+  return parts.join("; ");
+}
+
+/**
+ * The same facts as `describeFacts`, in fewer words, for decision models: a
+ * shorter request reads faster, since a decision model's latency is mostly the
+ * tokens it reads (findings.md §19). Chat models keep the fuller wording they
+ * were measured with.
+ */
+export function describeFactsCompact(f: MoveFacts): string {
+  const parts = [
+    `to row ${f.target.row} col ${f.target.col}`,
+    f.eats
+      ? "EATS FOOD"
+      : f.foodDistance === null
+        ? "no food"
+        : `food ${f.foodDistance} steps away`,
+    `${f.reachable}/${f.freeTotal} cells reachable`,
+  ];
+  if (f.deadEnd) parts.push("DEAD END: too little room, tail unreachable");
+  else if (f.canReachTail) parts.push("tail reachable");
   return parts.join("; ");
 }
 

@@ -11,6 +11,7 @@ import {
 } from "../src/ai/decision.ts";
 import { fullModelName, parseDecision } from "../src/ai/ollama.ts";
 import type { DecisionRequest, Provider } from "../src/ai/types.ts";
+import { describeFacts } from "../src/ai/prompt.ts";
 import shipped from "../src/prompts/jev-decision.json" with { type: "json" };
 
 const prompt = shipped as DecisionPromptFile;
@@ -42,12 +43,11 @@ describe("decision request", () => {
     assert.equal(rows[6][6], "H");
   });
 
-  test("has one criterion per safe move, turn first, with the same facts as the chat prompt", () => {
+  test("has one criterion per safe move, turn first, in compact wording", () => {
     assert.deepEqual(Object.keys(req.criteria), ["north", "east", "west"]);
     assert.equal(
       req.criteria.west,
-      "left turn; the head moves to row 6, column 5; the food is 5 steps away after " +
-        "this move; 141 of 141 empty cells stay reachable; the tail can still be followed out",
+      "left turn; to row 6 col 5; food 5 steps away; 141/141 cells reachable; tail reachable",
     );
   });
 
@@ -56,6 +56,36 @@ describe("decision request", () => {
     const walled = board({ snake: pts([6, 0], [6, 1], [6, 2]) });
     const r = buildDecisionRequest(prompt, toView(walled), analyze(walled));
     assert.ok(!("north" in r.criteria));
+  });
+});
+
+describe("decision request wording", () => {
+  const eats = board({ food: pts([6, 5]) });
+  const deadEnd = board({
+    rules: { ...board().rules, width: 4, height: 3 },
+    snake: pts([1, 0], [1, 1], [0, 1], [0, 2], [1, 2], [2, 2], [3, 2], [3, 1]),
+    food: pts([3, 0]),
+  });
+  const numbers = (s: string) => s.match(/\d+/g) ?? [];
+
+  test("states the same facts as the chat prompt, in every case", () => {
+    // Same information as JEV gets (ADR-0012): only the wording is shorter.
+    for (const state of [board(), eats, deadEnd]) {
+      const facts = analyze(state);
+      const req = buildDecisionRequest(prompt, toView(state), facts);
+      for (const f of facts) {
+        const compact = req.criteria[f.direction];
+        const chat = describeFacts(f);
+        assert.deepEqual(numbers(compact), numbers(chat));
+        assert.equal(/EATS/.test(compact), /EATS/.test(chat));
+        assert.equal(/DEAD END/.test(compact), /DEAD END/.test(chat));
+      }
+    }
+  });
+
+  test("flags a dead end", () => {
+    const req = buildDecisionRequest(prompt, toView(deadEnd), analyze(deadEnd));
+    assert.match(req.criteria.west, /DEAD END: too little room, tail unreachable/);
   });
 });
 

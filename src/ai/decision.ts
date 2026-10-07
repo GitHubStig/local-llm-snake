@@ -2,7 +2,7 @@ import { analyze, type MoveFacts } from "../game/analysis.ts";
 import type { Controller, Decision } from "../game/controller.ts";
 import type { GameView } from "../game/types.ts";
 import { forcedMove } from "./controller.ts";
-import { describeFacts, nameOf, renderGrid, type DirectionNames } from "./prompt.ts";
+import { describeFactsCompact, nameOf, renderGrid, type DirectionNames } from "./prompt.ts";
 import type { DecisionRequest, Provider } from "./types.ts";
 
 /**
@@ -19,8 +19,8 @@ export type DecisionPromptFile = {
 /**
  * A request in the shape JEV's reference implementation sends: the board and
  * the facts about the snake as state, and one criterion per safe move, turn
- * first. The option facts are the same ones the chat prompt states, so a
- * decision model and a chat model are told the same things (ADR-0014).
+ * first. The option facts are the ones the chat prompt states, in fewer words,
+ * so a decision model and a chat model are told the same things (ADR-0014).
  */
 export function buildDecisionRequest(
   file: DecisionPromptFile,
@@ -31,7 +31,7 @@ export function buildDecisionRequest(
   const food = view.food[0];
   const criteria: Record<string, string> = {};
   for (const f of facts) {
-    criteria[nameOf(file.directionNames, f.direction)] = `${f.turn}; ${describeFacts(f)}`;
+    criteria[nameOf(file.directionNames, f.direction)] = `${f.turn}; ${describeFactsCompact(f)}`;
   }
   return {
     state: {
