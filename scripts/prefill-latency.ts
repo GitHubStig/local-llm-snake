@@ -9,7 +9,9 @@
  *   models: comma list of Ollama decision models
  *   reps:   requests per length (default 8)
  *
- * The longest request is about 1,900 tokens, under tev1's 2,050-token context.
+ * The longest request was about 1,900 tokens on Ollama 0.40.0 and is about
+ * 2,150 on 0.40.4, past tev1's 2,048-token context. A length a model rejects
+ * is skipped for that model, shown as "—", and left out of the fit.
  */
 import { createOllamaProvider, listedModel } from "../src/ai/ollama.ts";
 import { nextInt } from "../src/game/prng.ts";
@@ -57,6 +59,18 @@ async function time(model: string, rows: number): Promise<{ ms: number; tokens: 
   return { ms: result.wallMs, tokens: result.inputTokens };
 }
 
+/** Whether the model answers a request of this many rows, rather than rejecting it as too long. */
+async function accepts(model: string, rows: number): Promise<boolean> {
+  try {
+    await time(model, rows);
+    return true;
+  } catch (error) {
+    if (!(error instanceof Error && error.message.includes("returned 400"))) throw error;
+    console.warn(`${model}: skipping ${rows} rows: ${error.message}`);
+    return false;
+  }
+}
+
 const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
 
 /** Least-squares slope of median latency against tokens, per 1,000 tokens. */
@@ -79,22 +93,30 @@ for (const model of models) {
   await quietMachine();
   for (let i = 0; i < 3; i++) await time(model, 10); // load and warm
 
+  // Send each length once, untimed, and keep those the model accepts.
+  const fits: boolean[] = [];
+  for (const rows of LENGTHS) fits.push(await accepts(model, rows));
+
   const samples = LENGTHS.map(() => [] as number[]);
   const tokens = LENGTHS.map(() => 0);
   // Rotate the order of lengths, so drift falls on all of them alike.
   for (let r = 0; r < reps; r++) {
     for (let k = 0; k < LENGTHS.length; k++) {
       const i = (k + r) % LENGTHS.length;
+      if (!fits[i]) continue;
       const t = await time(model, LENGTHS[i]);
       samples[i].push(t.ms);
       tokens[i] = t.tokens;
     }
   }
-  const points = LENGTHS.map((_, i) => ({ tokens: tokens[i], ms: median(samples[i]) }));
+  const points = LENGTHS.map((_, i) =>
+    fits[i] ? { tokens: tokens[i], ms: median(samples[i]) } : null,
+  );
+  const fitted = points.filter((p) => p !== null);
   console.log(
     `${model.padEnd(24)}  ` +
-      points.map((p) => `${p.ms} ms @ ${p.tokens}`.padStart(16)).join("") +
-      `   ${Math.round(perThousand(points))} ms`,
+      points.map((p) => (p ? `${p.ms} ms @ ${p.tokens}` : "—").padStart(16)).join("") +
+      `   ${fitted.length >= 2 ? `${Math.round(perThousand(fitted))} ms` : "—"}`,
   );
 }
 await quietMachine();
