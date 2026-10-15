@@ -1362,3 +1362,27 @@ Hunger is now part of the decision request (ADR-0012, amended 2026-10-15). A
 strategy is a matter of style that suits some models and not others, so it
 becomes a setting rather than part of the shipped wording ([open
 threads](open-threads.md)).
+
+### Strategies, in our own wording
+
+The strategy became a setting (ADR-0012, amended 2026-10-15), with `safe` and
+`greedy` reworded rather than copied from JEV. Measured the same day and the
+same way, with the hunger request; `balanced` is the column A above, the
+default request unchanged. Food eaten and games survived of five:
+
+| bf16 | balanced | greedy | safe |
+|---|---|---|---|
+| tev1 4b | 100, 5/5 | 106, 4/5 | 83, 5/5 |
+| nimble 9b | 106, 5/5 | 98, 4/5 | 88, 3/5 |
+| nimble-v3 9b | 45, 5/5 | 106, 4/5 | 21, 5/5 |
+| kev 4b | 29, 4/5 | 72, 5/5 | 17, 2/5 |
+| kev 9b | 77, 5/5 | 87, 3/5 | 39, 4/5 |
+
+- **Our `greedy` wording does what JEV's did.** nimble-v3 goes from 45 food to
+  106, close to the 110 with JEV's sentence, and kev 4b from 29 to 72.
+- **`safe` costs food for every model** and saves no games: it starves the
+  ones that circle, kev 4b losing three of five that way, and nimble-v3
+  disagrees with the code reference on 80% of its moves.
+- **No strategy suits every model.** `balanced` is best for nimble, `greedy`
+  for nimble-v3 and both kevs, and tev1 sits between them. A new model is
+  therefore worth measuring under each.

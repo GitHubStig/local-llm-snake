@@ -146,8 +146,8 @@ holds named `strategies`, and the chosen one's line ends the instructions:
 
 `safe` and `greedy` have the intent of JEV's presets of the same names, in our
 own words: the reference carries no licence, so its text is not copied (see
-*The wording is our own* above). §20 measured JEV's own `greedy` sentence,
-not this wording.
+*The wording is our own* above). §20 measured JEV's own `greedy` sentence
+first, then this wording, which has the same effect.
 
 The strategy is chosen in the decision panel, or with `STRATEGY=` in
 `eval-prompt.ts` and `realtime.ts`, which print it in their header. A strategy
