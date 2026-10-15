@@ -17,7 +17,8 @@ models and JEV can be compared on equal information
 ([ADR-0012](docs/adr/0012-single-prompt-matching-jev.md)).
 
 Ollama's *decision* models (Ollama 0.35 and later, such as `tev1`, `nimble`,
-and Cloudflare's `clef` and `clef-flash` from 0.35.1)
+Cloudflare's `clef` and `clef-flash` from 0.35.1, and `nimble-v3`, `kev`,
+`strands-decider` and `laya` from 0.40.4)
 are asked the same way JEV is: they are sent the board and the options, choose
 one, and return a probability for each
 ([ADR-0014](docs/adr/0014-decision-models-via-systemone.md)).
@@ -71,6 +72,11 @@ It has to be started by hand; the dropdown notes when it is missing.
 - **Plan ahead for the model's latency** sends a slow model the board as it
   will be when its answer lands, rather than as it is now
   ([ADR-0013](docs/adr/0013-latency-compensation-by-projection.md)).
+- **Strategy** tells a decision model how to play: *greedy* (the default)
+  goes for the food unless the move is a dead end, *balanced* stays alive and
+  eats, and *safe* keeps the most room. Each model suits a different one
+  ([findings](docs/findings.md) §20). Decision models are also told how many
+  moves they have left before the snake starves.
 - **Ask why** has the model explain each move. The explanation comes after the
   answer, so it never changes the move; it only adds latency. Decision models
   give probabilities instead, and ignore it.
@@ -101,9 +107,23 @@ Measured on one Apple-silicon Mac; details in
   speed; `nimble:9b-mlx-bf16` answers in about 330 ms and plays Normal speed,
   eating the most food of any model there. A decision model only reads its
   request, and reading is faster at full precision than at 4 or 8 bits.
-- **Larger decision models are not better here.** Cloudflare's Clef Flash (9B)
-  and Clef (27B) read the facts but survived fewer games than tev1 without a
-  clock (1 and 3 of 5), at about 540 ms and 1.8 s a move.
+- **Larger decision models judge better but are too slow.** Cloudflare's Clef
+  Flash (9B) and Clef (27B) survived fewer games than tev1 without a clock
+  (1 and 3 of 5), at about 540 ms and 1.8 s a move. kev 27b made the moves
+  closest to the code reference of any model, but at about 1 s a move it
+  cannot keep up even at Slow speed.
+- **Telling a decision model about hunger kept every snake alive.** The
+  request had never said that a snake starves. Once it did, tev1, nimble,
+  nimble-v3 and kev 9b survived all 20 games without a clock, against 16
+  before, for 5–18 ms more a move.
+- **No one strategy suits every model.** Told to be greedy, nimble-v3 ate 106
+  food against 45, and kev 4b 72 against 29; nimble v1 did best without it.
+  Being careful cost every model food. A new model is worth measuring under
+  each strategy.
+- **The smallest decision models barely play.** strands-decider and laya
+  mostly pick the same option whatever the board, and starve circling. The
+  0.8B tev1 and kev do the same unless told to be greedy, and then eat 25–33
+  food in five games, against about 100 for the 4B tev1.
 - **A mixture-of-experts chat model comes close.** A Gemma 4 26B-A4B build,
   which runs about 4B of its 26B parameters per token, judged as well as the
   large models at about 550 ms a move. It survived every game at Slow speed,
@@ -135,6 +155,9 @@ node scripts/eval-prompt.ts <models, comma-separated> [seeds] [maxTicks] [why]
 node scripts/realtime.ts <model> [slow|normal|fast|turbo] [seeds] [maxTicks]
 ```
 
+Both take `STRATEGY=greedy|balanced|safe` for decision models, and print it in
+their header.
+
 The judgement script is repeatable: at temperature 0 a model makes the same
 moves on the same seeds, so results can be compared across runs. Real-time
 results are not, since they depend on how long each answer happens to take.
@@ -146,7 +169,7 @@ results are not, since they depend on how long each answer happens to take.
 | `src/game/` | The engine, the game loop and the move analysis. Pure TypeScript with no imports from outside itself, so it is tested without a browser |
 | `src/ai/` | Model providers (Ollama, and the OpenAI-compatible API `fm serve` speaks), prompt assembly, and the controllers for chat and decision models |
 | `src/prompts/jev-parity.json` | The chat prompt, schema and direction names, editable without touching code |
-| `src/prompts/jev-decision.json` | The instructions and legend sent to decision models |
+| `src/prompts/jev-decision.json` | The instructions, legend and strategies sent to decision models |
 | `src/config/providers.json` | Providers, the default model and the rules behind each model's label |
 | `src/ui/` | The Vue app |
 | `tests/` | `node:test` suites |
