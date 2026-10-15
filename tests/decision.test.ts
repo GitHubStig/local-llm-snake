@@ -71,17 +71,14 @@ describe("decision request", () => {
     assert.ok(!("mustEatWithinMoves" in r.state));
   });
 
-  test("ends with the balanced goal by default, the request measured in findings §20", () => {
-    assert.equal(DEFAULT_STRATEGY, "balanced");
-    assert.ok(
-      req.instructions.endsWith("ends the game. " + HUNGER + " Goal: stay alive and eat food."),
-    );
+  test("ends with the greedy strategy by default, after the hunger rule", () => {
+    assert.equal(DEFAULT_STRATEGY, "greedy");
+    assert.ok(req.instructions.endsWith(`ends the game. ${HUNGER} ${prompt.strategies.greedy}`));
   });
 
   test("ends with the chosen strategy instead", () => {
-    const r = buildDecisionRequest(prompt, toView(state), analyze(state), "greedy");
-    assert.equal(r.instructions, `${prompt.instructions} ${prompt.strategies.greedy}`);
-    assert.ok(!r.instructions.includes("stay alive and eat food"));
+    const r = buildDecisionRequest(prompt, toView(state), analyze(state), "balanced");
+    assert.equal(r.instructions, `${prompt.instructions} Goal: stay alive and eat food.`);
   });
 
   test("never offers a fatal move", () => {

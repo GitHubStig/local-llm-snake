@@ -158,3 +158,13 @@ out.
 
 A new model is measured under each strategy rather than the shipped wording
 being tuned to whichever model is best today.
+
+## Amendment, 2026-10-15: greedy is the default strategy
+
+The default strategy is now `greedy`, not `balanced`. Of the decision models
+kept after that day's measurements, nimble-v3 and kev 9b eat far more under
+`greedy` (106 and 87 food against 45 and 77) and tev1 4b about the same
+([findings.md](../findings.md) §20), so the app plays better out of the box.
+`balanced` stays selectable, and is the goal every result before §20's
+strategy table was measured with; results from the two defaults are not
+directly comparable.

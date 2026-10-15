@@ -29,8 +29,11 @@ export type DecisionPromptFile = {
   strategies: Record<string, string>;
 };
 
-/** The goal line every decision-model result was measured with before strategies. */
-export const DEFAULT_STRATEGY = "balanced";
+/**
+ * Greedy, because it suits most of the decision models measured on 2026-10-15
+ * (findings §20). `balanced` is the goal every earlier result was measured with.
+ */
+export const DEFAULT_STRATEGY = "greedy";
 
 /** The instructions with the chosen strategy's line appended. */
 export function instructionsFor(file: DecisionPromptFile, strategy: string): string {

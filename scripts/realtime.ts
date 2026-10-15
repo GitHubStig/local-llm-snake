@@ -9,7 +9,7 @@
  * Ollama decision models (capability `decision`) are asked through
  * /v1/systemone, as the app asks them.
  * STRATEGY=name picks one of the decision prompt's strategies (default
- * `balanced`).
+ * `greedy`).
  *
  * First, every model Ollama holds is unloaded and the GPU left to go idle
  * (scripts/quiet.ts).

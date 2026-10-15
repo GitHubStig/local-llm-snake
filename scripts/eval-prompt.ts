@@ -19,7 +19,7 @@
  * src/prompts/jev-decision.json, to compare wordings.
  *
  * STRATEGY=name picks one of the decision prompt's strategies (default
- * `balanced`). How a model responds to a strategy differs by model, so a new
+ * `greedy`). How a model responds to a strategy differs by model, so a new
  * model is worth measuring under each.
  *
  * Ollama models with the `decision` capability (Ollama 0.35+, e.g. tev1 and
