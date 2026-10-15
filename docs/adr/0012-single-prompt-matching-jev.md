@@ -132,3 +132,29 @@ made three other models crash more. A preset is therefore to become a setting,
 measured per model, rather than part of the shipped wording ([open
 threads](../open-threads.md)). The goal line, *"Stay alive and eat food."*, is
 the text JEV sends when its strategy is empty; JEV's client starts on `safe`.
+
+## Amendment, 2026-10-15: strategy as a setting
+
+Built as the reconsideration above proposed. `src/prompts/jev-decision.json`
+holds named `strategies`, and the chosen one's line ends the instructions:
+
+- `balanced`, the default: *"Goal: stay alive and eat food."* The default
+  request is unchanged by this, and is the one measured in §20.
+- `safe`: survive first, keep the most cells reachable, never take a dead end,
+  eat only when it costs no room.
+- `greedy`: reach the food in the fewest moves, unless the move is a dead end.
+
+`safe` and `greedy` have the intent of JEV's presets of the same names, in our
+own words: the reference carries no licence, so its text is not copied (see
+*The wording is our own* above). §20 measured JEV's own `greedy` sentence,
+not this wording.
+
+The strategy is chosen in the decision panel, or with `STRATEGY=` in
+`eval-prompt.ts` and `realtime.ts`, which print it in their header. A strategy
+is fixed for a game, so the instructions stay identical across its ticks and
+remain cacheable. It applies to decision models only; the chat prompt keeps
+its fixed goal. JEV's `chaos` preset, which plays badly on purpose, is left
+out.
+
+A new model is measured under each strategy rather than the shipped wording
+being tuned to whichever model is best today.

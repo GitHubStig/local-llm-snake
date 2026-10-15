@@ -14,6 +14,9 @@ const {
   project,
   setProjection,
   setSettings,
+  strategy,
+  strategies,
+  setStrategy,
   stats,
 } = useGame();
 
@@ -160,6 +163,28 @@ const arrival = (lateness: number) =>
           "
         />
         <span>Ask why — after the answer, so it never changes the move</span>
+      </label>
+      <label
+        class="flex items-center gap-1.5"
+        :class="isDecisionModel ? '' : 'cursor-not-allowed opacity-50'"
+        :title="
+          isDecisionModel
+            ? 'How the model is told to play. It suits some models and hurts others.'
+            : 'Strategies are offered to decision models only'
+        "
+      >
+        <span>Strategy</span>
+        <select
+          :value="strategy"
+          class="field h-6 px-1 text-[11px] capitalize disabled:cursor-not-allowed"
+          :disabled="!isDecisionModel"
+          @change="
+            setStrategy(($event.target as HTMLSelectElement).value);
+            releaseFocus($event);
+          "
+        >
+          <option v-for="name in strategies" :key="name" :value="name">{{ name }}</option>
+        </select>
       </label>
     </div>
 

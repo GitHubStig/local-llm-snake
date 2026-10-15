@@ -5,6 +5,7 @@ import { analyze } from "../src/game/analysis.ts";
 import { createGame, toView } from "../src/game/engine.ts";
 import type { GameState, Point } from "../src/game/types.ts";
 import {
+  DEFAULT_STRATEGY,
   DecisionController,
   buildDecisionRequest,
   type DecisionPromptFile,
@@ -25,6 +26,9 @@ const board = (over: Partial<GameState> = {}): GameState => ({
   heading: "north",
   ...over,
 });
+
+const HUNGER =
+  "Going too long without food starves the snake: it must reach food within mustEatWithinMoves moves.";
 
 describe("decision request", () => {
   const state = board();
@@ -65,6 +69,19 @@ describe("decision request", () => {
       analyze(state),
     );
     assert.ok(!("mustEatWithinMoves" in r.state));
+  });
+
+  test("ends with the balanced goal by default, the request measured in findings §20", () => {
+    assert.equal(DEFAULT_STRATEGY, "balanced");
+    assert.ok(
+      req.instructions.endsWith("ends the game. " + HUNGER + " Goal: stay alive and eat food."),
+    );
+  });
+
+  test("ends with the chosen strategy instead", () => {
+    const r = buildDecisionRequest(prompt, toView(state), analyze(state), "greedy");
+    assert.equal(r.instructions, `${prompt.instructions} ${prompt.strategies.greedy}`);
+    assert.ok(!r.instructions.includes("stay alive and eat food"));
   });
 
   test("never offers a fatal move", () => {
@@ -159,6 +176,32 @@ describe("decision controller", () => {
     const decision = await decide(c, trapped);
     assert.equal(fake.calls.length, 0);
     assert.equal(decision.forced, true);
+  });
+
+  test("sends the chosen strategy", async () => {
+    const fake = fakeDecider("west");
+    const c = new DecisionController({
+      provider: fake.provider,
+      model: "tev1",
+      prompt,
+      strategy: "safe",
+    });
+    await decide(c, board());
+    assert.ok(fake.calls[0].instructions.endsWith(prompt.strategies.safe));
+  });
+
+  test("rejects an unknown strategy before any game starts", () => {
+    const fake = fakeDecider("west");
+    assert.throws(
+      () =>
+        new DecisionController({
+          provider: fake.provider,
+          model: "tev1",
+          prompt,
+          strategy: "bold",
+        }),
+      /unknown strategy "bold"; expected one of balanced, safe, greedy/,
+    );
   });
 
   test("rejects a choice it was never offered", async () => {

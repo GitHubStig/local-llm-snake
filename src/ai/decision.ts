@@ -21,7 +21,27 @@ export type DecisionPromptFile = {
    * its request has no such field.
    */
   hungerInState?: boolean;
+  /**
+   * Named playing styles, one of which ends the instructions. How a model
+   * responds to a style differs by model, so it is a setting, measured per
+   * model, rather than part of the fixed wording (ADR-0012, 2026-10-15).
+   */
+  strategies: Record<string, string>;
 };
+
+/** The goal line every decision-model result was measured with before strategies. */
+export const DEFAULT_STRATEGY = "balanced";
+
+/** The instructions with the chosen strategy's line appended. */
+export function instructionsFor(file: DecisionPromptFile, strategy: string): string {
+  const line = file.strategies[strategy];
+  if (line === undefined) {
+    throw new Error(
+      `unknown strategy "${strategy}"; expected one of ${Object.keys(file.strategies).join(", ")}`,
+    );
+  }
+  return `${file.instructions} ${line}`;
+}
 
 /**
  * A request in the shape JEV's reference implementation sends: the board and
@@ -33,6 +53,7 @@ export function buildDecisionRequest(
   file: DecisionPromptFile,
   view: GameView,
   facts: readonly MoveFacts[],
+  strategy: string = DEFAULT_STRATEGY,
 ): Omit<DecisionRequest, "model" | "signal"> {
   const head = view.snake[0];
   const food = view.food[0];
@@ -54,7 +75,7 @@ export function buildDecisionRequest(
         ? { mustEatWithinMoves: hungerLimit(view.rules, view.snake.length) - view.ticksSinceFood }
         : {}),
     },
-    instructions: file.instructions,
+    instructions: instructionsFor(file, strategy),
     criteria,
   };
 }
@@ -63,6 +84,8 @@ export type DecisionControllerOptions = {
   provider: Provider;
   model: string;
   prompt: DecisionPromptFile;
+  /** A key of `prompt.strategies`; `DEFAULT_STRATEGY` if left out. */
+  strategy?: string;
 };
 
 /**
@@ -74,12 +97,14 @@ export class DecisionController implements Controller {
   #options: DecisionControllerOptions;
 
   constructor(options: DecisionControllerOptions) {
+    // Checked here, so a mistyped strategy fails before a game starts.
+    instructionsFor(options.prompt, options.strategy ?? DEFAULT_STRATEGY);
     this.#options = options;
     this.id = `${options.provider.id}:${options.model}`;
   }
 
   async decide(view: GameView, signal: AbortSignal): Promise<Decision> {
-    const { provider, model, prompt } = this.#options;
+    const { provider, model, prompt, strategy } = this.#options;
     if (!provider.decide) throw new Error(`${provider.label} does not serve decision models`);
 
     // The board this decision is about; under projection, a few ticks ahead.
@@ -87,7 +112,7 @@ export class DecisionController implements Controller {
     const forced = forcedMove(facts, view);
     if (forced) return forced;
 
-    const request = buildDecisionRequest(prompt, view, facts);
+    const request = buildDecisionRequest(prompt, view, facts, strategy);
     const result = await provider.decide({ model, ...request, signal });
 
     const direction = facts.find(

@@ -8,7 +8,7 @@ import { DEFAULT_RULES, type Direction, type GameState } from "../game/types.ts"
 import type { Controller } from "../game/controller.ts";
 import { ModelController } from "../ai/controller.ts";
 import { DEFAULT_SETTINGS, type PromptFile, type PromptSettings } from "../ai/prompt.ts";
-import { DecisionController, type DecisionPromptFile } from "../ai/decision.ts";
+import { DEFAULT_STRATEGY, DecisionController, type DecisionPromptFile } from "../ai/decision.ts";
 import parityPrompt from "../prompts/jev-parity.json" with { type: "json" };
 import decisionPrompt from "../prompts/jev-decision.json" with { type: "json" };
 import { useProviders } from "./useProviders.ts";
@@ -35,6 +35,8 @@ export const useGame = createGlobalState(() => {
   const driver = ref<"human" | "model">("human");
   const selected = ref<{ providerId: string; modelId: string } | null>(null);
   const settings = ref<PromptSettings>({ ...DEFAULT_SETTINGS });
+  /** A key of the decision prompt's `strategies`; decision models only. */
+  const strategy = ref(DEFAULT_STRATEGY);
   const inFlightSince = ref<number | null>(null);
   /**
    * The model's most recent decision, kept until it makes another. Most ticks
@@ -103,6 +105,7 @@ export const useGame = createGlobalState(() => {
         provider,
         model: modelId,
         prompt: decisionPrompt as DecisionPromptFile,
+        strategy: strategy.value,
       });
     }
 
@@ -239,6 +242,11 @@ export const useGame = createGlobalState(() => {
     if (driver.value === "model") applyController();
   }
 
+  function setStrategy(next: string) {
+    strategy.value = next;
+    if (driver.value === "model") applyController();
+  }
+
   function press(direction: Direction) {
     human.press(direction);
   }
@@ -276,6 +284,8 @@ export const useGame = createGlobalState(() => {
     selected,
     isDecisionModel,
     settings,
+    strategy,
+    strategies: Object.keys((decisionPrompt as DecisionPromptFile).strategies),
     project,
     setProjection,
     inFlightSince,
@@ -283,6 +293,7 @@ export const useGame = createGlobalState(() => {
     setDriver,
     setModel,
     setSettings,
+    setStrategy,
     stats,
     record,
     newGame,

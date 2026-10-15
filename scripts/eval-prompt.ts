@@ -18,6 +18,10 @@
  * DECISION_PROMPT=path asks decision models with that prompt file instead of
  * src/prompts/jev-decision.json, to compare wordings.
  *
+ * STRATEGY=name picks one of the decision prompt's strategies (default
+ * `balanced`). How a model responds to a strategy differs by model, so a new
+ * model is worth measuring under each.
+ *
  * Ollama models with the `decision` capability (Ollama 0.35+, e.g. tev1 and
  * nimble) are asked through /v1/systemone with jev-decision.json, as the app
  * asks them; every other model gets the chat prompt.
@@ -33,7 +37,11 @@ import type { Direction, GameState } from "../src/game/types.ts";
 import { createOllamaProvider, fullModelName, listedModel } from "../src/ai/ollama.ts";
 import { createOpenAIProvider } from "../src/ai/openai.ts";
 import { ModelController } from "../src/ai/controller.ts";
-import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
+import {
+  DEFAULT_STRATEGY,
+  DecisionController,
+  type DecisionPromptFile,
+} from "../src/ai/decision.ts";
 import type { PromptFile } from "../src/ai/prompt.ts";
 import { quietMachine } from "./quiet.ts";
 
@@ -66,6 +74,7 @@ const decisionPrompt: DecisionPromptFile = {
   ...decisionBase,
   ...(jevLabels ? { directionNames: prompt.directionNames } : {}),
 };
+const strategy = process.env.STRATEGY ?? DEFAULT_STRATEGY;
 
 const ollama = createOllamaProvider("http://localhost:11434");
 // Checked before any game starts: an unlisted name used to fall back to chat.
@@ -112,7 +121,7 @@ async function play(model: string, seed: number) {
     model === "code"
       ? null
       : decisionModels.has(fullModelName(model))
-        ? new DecisionController({ provider: ollama, model, prompt: decisionPrompt })
+        ? new DecisionController({ provider: ollama, model, prompt: decisionPrompt, strategy })
         : new ModelController({
             provider: route(model).provider,
             model: route(model).id,
@@ -158,6 +167,7 @@ console.log(
   `${seedCount} seeds, cap ${maxTicks} ticks, why ${includeWhy ? "on" : "off"}` +
     (drop.length ? `, lines removed: ${drop.join(", ")}` : "") +
     (jevLabels ? ", JEV's labels (up/right/down/left)" : "") +
+    `, strategy ${strategy}` +
     "\n",
 );
 console.log(

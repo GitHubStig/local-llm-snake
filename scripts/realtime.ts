@@ -8,6 +8,8 @@
  *
  * Ollama decision models (capability `decision`) are asked through
  * /v1/systemone, as the app asks them.
+ * STRATEGY=name picks one of the decision prompt's strategies (default
+ * `balanced`).
  *
  * First, every model Ollama holds is unloaded and the GPU left to go idle
  * (scripts/quiet.ts).
@@ -20,7 +22,11 @@ import type { GameState } from "../src/game/types.ts";
 import { ModelController } from "../src/ai/controller.ts";
 import { createOllamaProvider, listedModel } from "../src/ai/ollama.ts";
 import { createOpenAIProvider } from "../src/ai/openai.ts";
-import { DecisionController, type DecisionPromptFile } from "../src/ai/decision.ts";
+import {
+  DEFAULT_STRATEGY,
+  DecisionController,
+  type DecisionPromptFile,
+} from "../src/ai/decision.ts";
 import type { PromptFile } from "../src/ai/prompt.ts";
 import { quietMachine } from "./quiet.ts";
 
@@ -49,6 +55,7 @@ const route =
 const decisionPrompt = JSON.parse(
   readFileSync("src/prompts/jev-decision.json", "utf8"),
 ) as DecisionPromptFile;
+const strategy = process.env.STRATEGY ?? DEFAULT_STRATEGY;
 const isDecisionModel =
   model !== "fm" &&
   listedModel(await route.provider.listModels(), model).capabilities.includes("decision");
@@ -59,7 +66,12 @@ type Result = { state: GameState; record: RunRecord; latencies: readonly number[
 function play(project: boolean, seed: number, latencies: readonly number[]): Promise<Result> {
   return new Promise((resolve) => {
     const controller = isDecisionModel
-      ? new DecisionController({ provider: route.provider, model, prompt: decisionPrompt })
+      ? new DecisionController({
+          provider: route.provider,
+          model,
+          prompt: decisionPrompt,
+          strategy,
+        })
       : new ModelController({
           provider: route.provider,
           model: route.id,
@@ -99,7 +111,7 @@ if (!(await route.provider.warm(route.id, { decision: isDecisionModel }))) {
 }
 console.log(
   `${model} at ${speed}, ${seedCount} seeds, cap ${maxTicks} ticks, real time, ` +
-    `asked through ${isDecisionModel ? "/v1/systemone" : "chat"}\n`,
+    `asked through ${isDecisionModel ? `/v1/systemone, strategy ${strategy}` : "chat"}\n`,
 );
 console.log(
   "projection  ticks            food  alive  share    ahead  on time  " +
