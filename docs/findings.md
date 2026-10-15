@@ -1386,3 +1386,38 @@ default request unchanged. Food eaten and games survived of five:
 - **No strategy suits every model.** `balanced` is best for nimble, `greedy`
   for nimble-v3 and both kevs, and tev1 sits between them. A new model is
   therefore worth measuring under each.
+
+### Every format, timed once with greedy
+
+Measured 2026-10-15, the same way, under `greedy`, for every format not yet
+run with a strategy. The bf16 rows are from the strategy table above. tev1 4b,
+nimble and clef-flash at mxfp8 and nvfp4 were timed in §19 and not repeated.
+Food eaten, games survived of five, and median latency:
+
+| greedy | bf16 | mxfp8 | nvfp4 |
+|---|---|---|---|
+| nimble-v3 9b | 106, 4/5, **313 ms** | 110, 5/5, 354 ms | 110, 5/5, 334 ms |
+| kev 9b | 87, 3/5, 304 ms | — | 84, 3/5, **301 ms** |
+| kev 27b | — | — | 107, 4/5, 1,020 ms |
+| kev 0.8b | 14, 1/5, 6 ms\* | 25, 3/5, 43 ms | — |
+| tev1 0.8b | 6, 1/5, 7 ms\* | 33, 5/5, 43 ms | — |
+| strands-decider 2b | 1, 0/5, 6 ms\* | 1, 0/5, 72 ms | 1, 0/5, 69 ms |
+
+\* Mostly answers from the `/v1/systemone` cache while a starving snake
+circles, not reading speed (see above). The bf16 rows for the three small
+models were measured with JEV's greedy sentence, not ours.
+
+kev 27b under the other strategies: 101, 5/5, 1,018 ms balanced; 82, 5/5,
+1,023 ms safe. Its bf16 tag, 51 GB, does not fit this Mac's 48 GB.
+
+- **bf16 is still fastest, or level, for every model** that has it: 7% ahead
+  of nvfp4 and 13% of mxfp8 for nimble-v3, level with nvfp4 for kev 9b.
+  §19's finding holds on 0.40.4.
+- **Format does not change play much**, as in §19: nimble-v3 eats 106–110 in
+  all three.
+- **kev 27b judges best and is too slow to play.** It differs from the code
+  reference on 14% of moves under greedy, the lowest of any model, but at
+  about 1,020 ms it misses even the Slow tick (1,000 ms).
+- **Greedy gets the tiny models to steer a little:** tev1 0.8b and kev 0.8b at
+  mxfp8 eat 25–33 food, against 1–18 before. strands-decider does not move
+  under any request.
