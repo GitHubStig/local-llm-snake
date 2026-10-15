@@ -51,6 +51,22 @@ describe("decision request", () => {
     );
   });
 
+  test("counts the moves left before starving", () => {
+    // Length 3: hungerLimit is 100 + 3 * 10 = 130 ticks without food.
+    const hungry = board({ ticksSinceFood: 120 });
+    const r = buildDecisionRequest(prompt, toView(hungry), analyze(hungry));
+    assert.equal(r.state.mustEatWithinMoves, 10);
+  });
+
+  test("adds no hunger field when the prompt file turns it off", () => {
+    const r = buildDecisionRequest(
+      { ...prompt, hungerInState: false },
+      toView(state),
+      analyze(state),
+    );
+    assert.ok(!("mustEatWithinMoves" in r.state));
+  });
+
   test("never offers a fatal move", () => {
     // Against the north wall, north would leave the grid.
     const walled = board({ snake: pts([6, 0], [6, 1], [6, 2]) });

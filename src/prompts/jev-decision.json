@@ -1,4 +1,5 @@
 {
-  "instructions": "Snake: pick the head's next move. Every option is safe this step, and its facts were computed exactly by code: trust them. A DEAD END almost always loses a few steps later. Eating food adds one segment. Hitting a wall or the snake's own body ends the game. Goal: stay alive and eat food.",
-  "legend": "H head, o body, T tail, F food, . empty. Row 0 is the top, column 0 the left. Off the grid is a wall."
+  "instructions": "Snake: pick the head's next move. Every option is safe this step, and its facts were computed exactly by code: trust them. A DEAD END almost always loses a few steps later. Eating food adds one segment. Hitting a wall or the snake's own body ends the game. Going too long without food starves the snake: it must reach food within mustEatWithinMoves moves. Goal: stay alive and eat food.",
+  "legend": "H head, o body, T tail, F food, . empty. Row 0 is the top, column 0 the left. Off the grid is a wall.",
+  "hungerInState": true
 }

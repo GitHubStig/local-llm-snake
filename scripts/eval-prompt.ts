@@ -15,6 +15,9 @@
  * LABELS=jev names the directions up, right, down and left, as JEV's own
  * options are named, instead of the prompt file's names.
  *
+ * DECISION_PROMPT=path asks decision models with that prompt file instead of
+ * src/prompts/jev-decision.json, to compare wordings.
+ *
  * Ollama models with the `decision` capability (Ollama 0.35+, e.g. tev1 and
  * nimble) are asked through /v1/systemone with jev-decision.json, as the app
  * asks them; every other model gets the chat prompt.
@@ -57,7 +60,7 @@ const prompt: PromptFile = {
 };
 
 const decisionBase = JSON.parse(
-  readFileSync("src/prompts/jev-decision.json", "utf8"),
+  readFileSync(process.env.DECISION_PROMPT ?? "src/prompts/jev-decision.json", "utf8"),
 ) as DecisionPromptFile;
 const decisionPrompt: DecisionPromptFile = {
   ...decisionBase,

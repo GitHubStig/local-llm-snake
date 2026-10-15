@@ -1295,3 +1295,70 @@ same seeds, yet two of the three play differently on 0.40.0:
 Results from different Ollama versions are therefore not directly comparable,
 even for an unchanged model file. Comparisons in this section are all on 0.40.0.
 
+
+## 20. Telling decision models about hunger, and JEV's greedy strategy
+
+Measured **2026-10-15** with **Ollama 0.40.4** on the same M5 Pro, the GPU idle.
+`scripts/eval-prompt.ts`, 5 seeds × 200 ticks, the same seeds as §13 onwards,
+every model at bf16 through `/v1/systemone`.
+
+The decision request never mentioned hunger (ADR-0003). JEV's game has none,
+so its request has nothing to copy, and a model could circle safely beside the
+food until it starved without having been told that this kills the snake. Two
+changes were tried, alone and together:
+
+- **A, hunger.** The instructions add *"Going too long without food starves the
+  snake: it must reach food within mustEatWithinMoves moves."*, and the state
+  carries `mustEatWithinMoves`, the moves left before starving.
+- **B, greedy.** The goal line is replaced by JEV's own `greedy` preset, sent as
+  JEV sends it: *"Player strategy: Get to the food as fast as possible. Always
+  shorten the distance to the food unless that move is a dead end."* JEV's
+  client starts on its `safe` preset; *"Stay alive and eat food."* is its
+  fallback when the strategy is empty.
+
+Food eaten, games survived of five, and median latency:
+
+| bf16 | shipped request | A | B | A + B |
+|---|---|---|---|---|
+| tev1 4b | 95, 4/5, 157 ms | 100, **5/5**, 168 ms | 94, 3/5, 164 ms | 106, 3/5, 173 ms |
+| nimble 9b | 101, 3/5, 300 ms | 106, **5/5**, 305 ms | 97, 3/5, 304 ms | 110, **5/5**, 315 ms |
+| nimble-v3 9b | 63, 4/5, 291 ms | 45, **5/5**, 304 ms | 110, **5/5**, 304 ms | 104, 4/5, 314 ms |
+| kev 9b | 60, 5/5, 274 ms | 77, **5/5**, 292 ms | 70, 2/5, 286 ms | 88, 1/5, 300 ms |
+| all four | 319 food, 16/20 | 328, **20/20** | 371, 13/20 | **408**, 13/20 |
+
+The tev1 baseline was measured on 2026-10-14, on the same Ollama version, with
+other work using the machine; its games are reliable, its latency less so.
+
+- **Hunger kept every snake alive** across all four models, and three of them
+  ate more. It costs 5–18 ms, from the longer request.
+- **Greedy depends on the model.** nimble-v3 went from 63 food to 110, the best
+  of these runs; tev1, nimble and kev crashed more. No crash came from choosing
+  a dead end: greedy play enters spaces that are safe now and closed later.
+- **Together they eat the most and lose the most games.**
+- Five games per cell cannot rank close results; once one move differs, the
+  rest of the game does too. The survival difference is the clearer signal.
+
+The smaller decision models, measured the same way:
+
+| | shipped request | A | B |
+|---|---|---|---|
+| kev 4b (bf16) | 26, 4/5 | 29, 4/5 | 56, 4/5 |
+| tev1 0.8b (bf16) | 18, 3/5 | 17, 3/5 | 6, 1/5 |
+| kev 0.8b (bf16) | 1, 0/5 | 3, 0/5 | 14, 1/5 |
+| strands-decider 2b (bf16) | 1, 0/5 | 1, 0/5 | 1, 0/5 |
+| laya 421m, `typed-decisions` and `latest` (fp16) | 6, 1/5 | 6, 1/5 | 6, 1/5 |
+| laya 322m `multilingual` (fp16) | 1, 0/5 | 2, 0/5 | 1, 0/5 |
+
+- **No wording rescues them.** Most games end in starvation, the snake
+  circling on one choice. strands-decider differs from the code reference on
+  99% of moves under every request.
+- **laya plays the same games whatever it is told:** move for move under all
+  three requests. It appears to read only the option texts.
+- **kev 4b doubles its food with greedy,** as nimble-v3 did.
+- Medians under about 40 ms here are mostly answers from `/v1/systemone`'s
+  cache (§16): a circling snake repeats the same board, and so the same request.
+
+Hunger is now part of the decision request (ADR-0012, amended 2026-10-15). A
+strategy is a matter of style that suits some models and not others, so it
+becomes a setting rather than part of the shipped wording ([open
+threads](open-threads.md)).

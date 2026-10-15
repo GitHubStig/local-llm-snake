@@ -1,5 +1,6 @@
 import { analyze, type MoveFacts } from "../game/analysis.ts";
 import type { Controller, Decision } from "../game/controller.ts";
+import { hungerLimit } from "../game/engine.ts";
 import type { GameView } from "../game/types.ts";
 import { forcedMove } from "./controller.ts";
 import { describeFactsCompact, nameOf, renderGrid, type DirectionNames } from "./prompt.ts";
@@ -14,6 +15,12 @@ export type DecisionPromptFile = {
   /** Sent inside the state, as JEV's request does. */
   legend: string;
   directionNames?: DirectionNames;
+  /**
+   * Adds `mustEatWithinMoves` to the state: how many moves the snake has left
+   * to reach food before it starves (ADR-0003). JEV's game has no hunger, so
+   * its request has no such field.
+   */
+  hungerInState?: boolean;
 };
 
 /**
@@ -43,6 +50,9 @@ export function buildDecisionRequest(
       snakeLength: view.snake.length,
       gridSize: { rows: view.rules.height, cols: view.rules.width },
       foodIsAdjacent: facts.some((f) => f.eats),
+      ...(file.hungerInState
+        ? { mustEatWithinMoves: hungerLimit(view.rules, view.snake.length) - view.ticksSinceFood }
+        : {}),
     },
     instructions: file.instructions,
     criteria,

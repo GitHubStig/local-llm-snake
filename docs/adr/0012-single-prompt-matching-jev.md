@@ -106,3 +106,29 @@ local models. Deferred until it can be verified.
 - **The request is still below the caching threshold.** About 227 tokens of
   system prompt and roughly 200 of board and options put a typical request
   around 430 tokens, under the ~512 where Ollama's prefix cache engages.
+
+## Amendment, 2026-10-15: hunger in the decision request
+
+The decision request now tells the model about hunger. Its instructions add
+*"Going too long without food starves the snake: it must reach food within
+mustEatWithinMoves moves."*, and its state carries `mustEatWithinMoves`, the
+moves left before the snake starves (ADR-0003). It is set by `hungerInState`
+in `src/prompts/jev-decision.json`.
+
+This is a recorded exception to parity, like the direction names. JEV's game
+has no hunger, so its request has nothing to match; leaving it out did not
+make the comparison fairer, it hid one of our game's rules from the model.
+Parity protects the information a model gets about the game it is playing.
+
+Measured with four decision models, it kept every game alive where the shipped
+request lost four of twenty, and three of the four ate more
+([findings.md](../findings.md) §20). The count changes every tick, so it is in
+the state, never in the cached instructions. The chat prompt is unchanged.
+
+**Strategy presets, reconsidered.** The rejection above said presets change
+style rather than accuracy. §20 shows that the style matters, and differently
+for each model: JEV's `greedy` preset took nimble-v3 from 63 food to 110 and
+made three other models crash more. A preset is therefore to become a setting,
+measured per model, rather than part of the shipped wording ([open
+threads](../open-threads.md)). The goal line, *"Stay alive and eat food."*, is
+the text JEV sends when its strategy is empty; JEV's client starts on `safe`.
