@@ -8,7 +8,7 @@
 
 Deno was chosen at the outset for consistency with another project, and later
 partly for `deno desktop`. Desktop was rejected (ADR-0007), which prompted a
-re-examination. Measurements are in [findings.md](../findings.md) §8.
+re-examination. Measurements are in [findings.md](../findings.md) §15.
 
 ## Decision
 
