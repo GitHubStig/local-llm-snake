@@ -4,15 +4,86 @@ Evidence the [ADRs](adr/) cite. Decisions and measurements date differently, so
 they live apart: an ADR says what we chose and why, this file says what was
 observed.
 
-All measurements taken **2026-09-21** on macOS 27.0 (arm64), Ollama 0.34.2,
-Deno 2.9.7, Node 24.19.0, Bun 1.4.2, Vite 8.3.0. Model calls used
-`stream: false`, `temperature: 0`, `seed: 42`, structured output via a `format`
-JSON schema, with the model already resident unless stated. Single sample per
-cell at temperature 0 — deterministic, but without confidence intervals.
+The first measurements were taken **2026-09-21** on macOS 27.0 (arm64), Ollama
+0.34.2, Node 24.19.0, Vite 8.3.0; later sections state their own Ollama
+version. Model calls used `stream: false`, `temperature: 0`, `seed: 42`,
+structured output via a `format` JSON schema, with the model already resident
+unless stated. Single sample per cell at temperature 0 — deterministic, but
+without confidence intervals.
 
 Until 2026-10-07 the Fast tick was 150 ms and Turbo 60 ms; they are now 200 ms
 and 100 ms (ADR-0001). Every Fast or Turbo result in this file before §19 was
 measured at the old ticks.
+
+---
+
+## Current standings
+
+Each model's latest result, gathered from the numbered sections below, which
+hold the detail and the conditions. They were not measured together: Ollama
+upgrades have changed the games of an unchanged model file (0.40.0 in §19,
+0.40.5 in §21), the decision request has changed twice (the tight wording in §19, hunger
+in §20), and five games cannot rank close results. Read rows from different
+versions as rough company, not a ranking.
+
+### Judgement, no clock
+
+`scripts/eval-prompt.ts`, 5 seeds × 200 ticks, the same seeds throughout.
+Decision models are under their best strategy (§20); the others they were
+measured under are in the last column. The code reference picks the obvious
+move from the same facts.
+
+| model | tag measured | food | alive | differs from code | median | other strategies | Ollama or date | source |
+|---|---|---|---|---|---|---|---|---|
+| code reference | — | 106 | 5/5 | — | — | — | — | §13 |
+| tev1 4b | bf16, greedy | 107 | 5/5 | 33% | 172 ms | balanced 100, 5/5; safe 83, 5/5 | 0.40.5 | §21, §20 |
+| nimble 9b (v1) | bf16, balanced | 106 | 5/5 | — | 305 ms | greedy 98, 4/5; safe 88, 3/5 | 0.40.4 | §20 |
+| nimble-v3 9b | nvfp4, greedy | 110 | 5/5 | — | 334 ms | bf16 106, 4/5, 313 ms; balanced 45; safe 21 | 0.40.4 | §20 |
+| kev 27b | nvfp4, greedy | 107 | 4/5 | 14% | 1,020 ms | balanced 101, 5/5; safe 82, 5/5 | 0.40.4 | §20 |
+| kev 9b | bf16, greedy | 87 | 3/5 | — | 304 ms | balanced 77, 5/5; safe 39, 4/5 | 0.40.4 | §20 |
+| kev 4b | bf16, greedy | 72 | 5/5 | — | — | balanced 29; safe 17 | 0.40.4 | §20 |
+| clef-flash 9b | mxfp8, full request | 81 | 3/5 | 35% | 399 ms | bf16 65, 1/5, 326 ms | 0.40.0 | §19 |
+| clef 27b | Q4_K_M, full request | 70 | 3/5 | 52% | 1,792 ms | — | 0.35.1 | §18 |
+| tev1 0.8b | mxfp8, greedy | 33 | 5/5 | — | 43 ms | — | 0.40.4 | §20 |
+| kev 0.8b | mxfp8, greedy | 25 | 3/5 | — | 43 ms | — | 0.40.4 | §20 |
+| d1 3b | Q8_0, greedy | 7 | 0/5 | 94% | 153 ms | balanced 4; safe 4 | 0.40.5 | §21 |
+| laya 421m | fp16 | 6 | 1/5 | — | — | the same games under every request | 0.40.4 | §20 |
+| strands-decider 2b | every format | 1 | 0/5 | 99% | — | the same under every request | 0.40.4 | §20 |
+| laya 322m | fp16 | 1 | 0/5 | — | — | — | 0.40.4 | §20 |
+| *chat models* | | | | | | | | |
+| gemma4:31b | | 115 | 5/5 | 12% | 1,293 ms | | 2026-09-23 | §13 |
+| qwen3.8:27b | | 111 | 5/5 | 22% | 1,110 ms | | 2026-09-23 | §13 |
+| gemma-4-26B-A4B heretic | Q4_K_M | 105 | 5/5 | 20% | 553 ms | | 0.35.0 | §17 |
+| muse-glimmer:30b | | 100 | 4/5 | 3% | 1,223 ms | | 2026-09-23 | §13 |
+| llama3:latest | | 7 | 2/5 | 74% | 318 ms | | 2026-09-23 | §13 |
+| gemma4:e2b | | 4 | 0/5 | 98% | 232 ms | | 2026-09-23 | §13 |
+| Apple Foundation Models | `fm serve` | 1 | 0/5 | 59% | 545 ms | | — | §13 |
+
+A dash under *differs from code* means the section records no figure for that
+run. Medians under about 40 ms are mostly cache hits while a starving snake
+circles (§16, §20), not reading speed.
+
+### Real time
+
+`scripts/realtime.ts`, 3 seeds, 150-tick cap, at the fastest speed each model
+was found to keep up with, projection on. No model measured since §19 has been
+run in real time yet: nimble-v3, kev and d1 have no row.
+
+| model | tag measured | speed | food | alive | on time | Ollama or date | source |
+|---|---|---|---|---|---|---|---|
+| tev1 4b | bf16, tight request | Fast (200 ms) | 47 | 3/3 | 100% | 0.40.0 | §19 |
+| nimble 9b (v1) | bf16, full request | Normal (400 ms) | 50 | 3/3 | 100% | 0.40.0 | §19 |
+| clef-flash 9b | bf16, full request | Normal | 28 | 3/3 | 100% | 0.40.0 | §19 |
+| gemma-4-26B-A4B heretic | Q4_K_M | Slow (1,000 ms) | 50 | 3/3 | 100% | 0.35.0 | §17 |
+| muse-glimmer:30b | | Slow | 23 | 1/3 | 95% | 2026-09-23 | §14 |
+| qwen3.8:27b | | Slow | 16 | 0/3 | 92% | 2026-09-23 | §14 |
+| gemma4:31b | | Slow | 13 | 0/3 | 87% | 2026-09-23 | §14 |
+| clef 27b | Q4_K_M | Slow | 6 | 0/3 | 98% | 0.35.1 | §18 |
+| llama3:latest | | Normal | 6 | 2/3 | 100% | 2026-09-23 | §14 |
+| Apple Foundation Models | `fm serve` | Normal | 1 | 0/3 | 90% | — | §14 |
+
+No model keeps up with Turbo (100 ms). tev1 4b at bf16 is the fastest that
+plays well, at about 150–170 ms.
 
 ---
 
@@ -643,14 +714,6 @@ llama3 and Apple's on-device model, same conditions, at Normal speed:
   facing. Projection lands its answers on the right tick; an on-time random
   move does not save it.
 
-| | fast enough for Normal | acts on the facts |
-|---|---|---|
-| llama3:latest | yes, ~320 ms | no |
-| qwen3.8:27b | no, ~1100 ms | yes |
-| gemma4:31b | no, ~1290 ms | yes |
-| muse-glimmer:30b | no, ~1220 ms | yes |
-| Apple Foundation Models | no, ~545 ms | no |
-
 gemma4:31b at Slow repeats qwen's pattern: projection off, 28, 85 and 47 ticks
 with 49% of decisions made; on, 121, 37 and 82 ticks with 88% made and 87% on
 time. It still dies waiting, getting a decision only every other tick.
@@ -668,10 +731,9 @@ ended with it dying while an answer was on the way.
 | qwen3.8:27b | 121, 45, 33 | 16 | 0/3 | 92% | 92% |
 | gemma4:31b | 121, 37, 82 | 13 | 0/3 | 88% | 87% |
 
-No model tested at the time had both; tev1, a decision model, later did at
-Normal speed (§16). That is the profile JEV claims — an answer in under
-200 ms from a model built to choose between described options — and the bar a
-JEV-like local model would have to clear.
+No model tested at the time was both fast enough for Normal speed and able to
+act on the facts; decision models later were (§16, §19, and the current
+standings).
 
 ### Two runner bugs found while measuring
 
@@ -686,73 +748,21 @@ JEV-like local model would have to clear.
 
 ## 15. Runtime matrix
 
-*Corrected 2026-09-30, and no longer current:* Deno and Bun support has been
-dropped ([ADR-0010](adr/0010-stack-pins-and-runtime.md), amendment).
-Re-measured then, from a clean `git archive` copy of the repository and with
-the same runtime versions, the table below did not hold in three places:
+Measured 2026-09-21 across Node 24.19, Bun 1.4.2 and Deno 2.9.7. Deno and Bun
+have since been dropped, after a re-measurement from a clean copy of the
+repository found neither as clean as first recorded; the detail is in
+[ADR-0010](adr/0010-stack-pins-and-runtime.md), amendment. On all three, build
+output was byte-identical. The traps that still apply under Node:
 
-- **Deno install failed.** Deno builds its `deno.lock` from
-  `package-lock.json`, and it rejected the committed lockfile as corrupt: it
-  could not find `@tybys/wasm-util@0.10.2`. That package is bundled inside
-  Tailwind's optional `oxide-wasm32-wasi` package, which has been in the
-  lockfile since the first commit, so the "pass" below must have been measured
-  without it. With `--no-lock`, Deno installed and built, with output
-  byte-identical to Node's, and passed all 106 tests.
-- **Bun failed the typecheck.** Under `bun --bun run typecheck`, `vue-tsc`
-  could not resolve `./ui/App.vue`, the same error as on Deno. Plain `bun run`
-  passes because it hands the job to Node (see the traps below), which is
-  probably how the "pass" below was recorded.
-- **Vitest** was removed from the project in `aa9b725`.
-
-Bun otherwise passed: install, build (byte-identical output), all 106 tests,
-lint and format.
-
-One `package.json`, no `deno.json`, no `bunfig.toml`. 20 of 21 tasks green.
-
-| Task | Node 24.19 | Bun 1.4.2 | Deno 2.9.7 |
-|---|---|---|---|
-| install / build / dev / preview | pass | pass | pass |
-| `node:test` suite | pass | pass | pass |
-| Vitest | pass | pass | pass |
-| oxlint · prettier | pass | pass | pass |
-| **`vue-tsc` typecheck** | pass | pass | **fail (rc=2)** |
-
-Build output is **byte-identical** from all three.
-
-| | install (cold) | install (warm) | build | test |
-|---|---|---|---|---|
-| Node/npm | 15.88 s | 1.72 s | 0.73 s | 0.16 s |
-| Bun | 1.42 s | 0.46 s | 0.81 s | 0.02 s |
-| Deno | 2.97 s | 0.06 s | 0.81 s | 0.30 s |
-
-### Traps found
-
-- **Deno cannot typecheck `.vue`, and fails silently.** A real `TS2322` inside
-  `App.vue` returned **rc=0** from `deno check` on the importing file; `vue-tsc`
-  caught it on Node and Bun.
-- **`bun run` is not Bun.** It honours the `#!/usr/bin/env node` shebang on
-  `node_modules/.bin/vite` and delegates to Node. `bun --bun run` is required
-  to actually run under Bun. Deno does not do this.
-- **Prettier and `deno fmt` disagree** on 6 of 14 files; `deno fmt` ignores
-  `.vue` by default and reformats `.svg`.
-- **Test invocation cannot be unified.** A bare directory breaks Node; a glob
-  breaks Bun (its positional args are substring filters). `*.spec.ts` is
-  discovered only by Bun.
 - **Node silently false-passes foreign test files** — a stray Vitest-style file
   was reported as `✔ passing` while no assertion ever ran.
 - **Tailwind 4 scans `dist/`.** Without a `.gitignore`, a second build harvested
   class names from the previous bundle and produced 7.11 kB of CSS instead of
-  5.11 kB. Reproduced on every runtime.
-- **`baseUrl` in `tsconfig.json` breaks `deno check`** with `TS5101` (Deno 2.9.7
-  bundles TypeScript 6.0.3). `paths` works without it.
-
-### Corrected attribution
-
-An aliased `import.meta.glob` pattern failing **silently** was originally
-attributed to Deno. It is **Vite 8 behaviour on every runtime**: an unregistered
-alias produces a warning, exit code 0, and a literal `import.meta.glob(...)`
-left in the bundle that throws at runtime. Reproduced identically under Node.
-Relative patterns avoid it entirely.
+  5.11 kB.
+- **An aliased `import.meta.glob` pattern fails silently** in Vite 8: an
+  unregistered alias produces a warning, exit code 0, and a literal
+  `import.meta.glob(...)` left in the bundle that throws at runtime. First
+  blamed on Deno, it happens on every runtime. Relative patterns avoid it.
 
 ---
 
@@ -778,7 +788,6 @@ through `/v1/systemone`:
 
 | | ticks survived | food | alive | into dead end | passed food | differs from code | median |
 |---|---|---|---|---|---|---|---|
-| code reference | 200 ×5 | 106 | 5/5 | 0% | 0% | — | — |
 | **tev1** | 200 ×5 | 96 | **5/5** | 0% | 0% | 31% | **317 ms** |
 | nimble | 200, 200, 200, 111, 200 | 99 | 4/5 | 0% | 0% | 20% | 548 ms |
 
@@ -833,17 +842,8 @@ of JEV parity.
   and it dies within a few ticks; with projection it lasts longer and eats more,
   but it decides only every other tick and died in all three games.
 
-This corrects §14's closing table, which found no model both fast enough for
-Normal speed and able to act on the facts:
-
-| | fast enough for Normal | acts on the facts |
-|---|---|---|
-| **tev1** | **yes, ~310 ms** | **yes** |
-| nimble | no, ~550 ms | yes |
-| llama3:latest | yes, ~320 ms | no |
-
-*Corrected 2026-10-07* (§19): on MLX at bf16, nimble answers in about 326 ms and
-plays Normal speed.
+tev1 was the first model both fast enough for Normal speed and able to act on
+the facts. On MLX at bf16, nimble later was too (§19).
 
 ### A more compact request: measured, not adopted
 
@@ -933,11 +933,7 @@ parser, so it is formatted as Gemma expects.
 
 | | ticks survived | food | alive | into dead end | passed food | differs from code | median |
 |---|---|---|---|---|---|---|---|
-| code reference | 200 ×5 | 106 | 5/5 | 0% | 0% | — | — |
-| gemma4:31b (§13) | 200 ×5 | 115 | 5/5 | 0% | 0% | 12% | 1293 ms |
 | **gemma-4-26B-A4B heretic** | 200 ×5 | **105** | **5/5** | 0% | 0% | 20% | **553 ms** |
-| tev1 (§16) | 200 ×5 | 96 | 5/5 | 0% | 0% | 31% | 317 ms |
-| llama3:latest (§13) | 141, 174, 200, 200, 130 | 7 | 2/5 | 0% | 0% | 74% | 318 ms |
 
 It reads the facts as well as the large dense models do, survives every game,
 and answers in well under half the time of gemma4:31b: running only a few
@@ -967,20 +963,8 @@ model nimble; only tev1 is faster. But at 553 ms it is still over the
   projection its share rises to 96%, but it decides only every other tick and
   still dies waiting in two of three games.
 
-| | fast enough for Normal | fast enough for Slow | acts on the facts |
-|---|---|---|---|
-| tev1 | yes, ~310 ms | yes | yes |
-| **gemma-4-26B-A4B heretic** | no, ~553 ms | **yes** | **yes** |
-| nimble | no, ~550 ms | yes | yes |
-| muse-glimmer:30b | no, ~1220 ms | no | yes |
-| llama3:latest | yes, ~320 ms | yes | no |
-
 A mixture of experts closes much of the gap between the large dense models
 and a decision model: judgement like gemma4:31b's at under half its latency.
-tev1 remains the only model here fast enough for Normal speed.
-
-*Corrected 2026-10-07* (§19): on MLX at bf16, nimble and clef-flash also keep
-up at Normal, and tev1 at the new 200 ms Fast tick.
 
 ---
 
@@ -1012,7 +996,6 @@ the same result as in §16: 96 food, 5/5 alive, 312 ms median.
 
 | | ticks survived | food | alive | into dead end | passed food | differs from code | median |
 |---|---|---|---|---|---|---|---|
-| code reference | 200 ×5 | 106 | 5/5 | 0% | 0% | — | — |
 | tev1 | 200 ×5 | 96 | 5/5 | 0% | 0% | 31% | 312 ms |
 | clef-flash | 112, 160, 200, 178, 126 | 59 | 1/5 | 0% | 0% | 36% | 540 ms |
 | clef | 200, 200, 191, 128, 200 | 70 | 3/5 | 0% | 0% | 52% | 1,792 ms |
@@ -1061,19 +1044,8 @@ The table shows the re-measured figures.
   projection raises its share of decisions to 93%, but it died in all three
   games.
 
-| | fast enough for Normal | fast enough for Slow | acts on the facts | survives without a clock |
-|---|---|---|---|---|
-| tev1 | yes, ~310 ms | yes | yes | 5/5 |
-| nimble | no, ~550 ms | yes | yes | 4/5 |
-| clef-flash | no, ~540 ms | yes | yes | 1/5 |
-| clef | no, ~1,790 ms | no | yes | 3/5 |
-
-Neither Clef model displaces tev1, which remains the only model here both fast
-enough for Normal speed and reliably alive.
-
-*Corrected 2026-10-07* (§19): on Ollama 0.40.0's MLX runner at bf16, clef-flash
-answers in about 326 ms and survived every real-time game at Normal, though
-with little food; nimble did the same with the most food of any model.
+Neither Clef model displaced tev1 on GGUF. On MLX at bf16, clef-flash keeps up
+at Normal, though with little food (§19).
 
 ---
 
@@ -1104,7 +1076,6 @@ at most 5% for three seconds running.
 
 | | ticks survived | food | alive | into dead end | passed food | differs from code | median |
 |---|---|---|---|---|---|---|---|
-| code reference | 200 ×5 | 106 | 5/5 | 0% | 0% | — | — |
 | tev1 Q8_0 | 200 ×5 | 88 | 5/5 | 0% | 0% | 36% | 314 ms |
 | tev1 MLX | 200 ×5 | 88 | 5/5 | 0% | 0% | 33% | **210 ms** |
 | nimble Q8_0 | 200 ×5 | 106 | 5/5 | 0% | 0% | 23% | 602 ms |
@@ -1181,10 +1152,6 @@ tick (ADR-0001).
   with 50 food with projection: the most of any model at Normal in real time.
 - **clef-flash survives Normal but eats little,** 28 food, about half the
   others, in keeping with its weaker judgement without a clock.
-
-This corrects the closing claims of §16, §17 and §18 that tev1 is the only
-model fast enough for Normal speed: on MLX at bf16, nimble and clef-flash are
-too, and tev1 is fast enough for Fast.
 
 ### Why full precision is faster: the cost of reading the request
 
@@ -1421,3 +1388,31 @@ kev 27b under the other strategies: 101, 5/5, 1,018 ms balanced; 82, 5/5,
 - **Greedy gets the tiny models to steer a little:** tev1 0.8b and kev 0.8b at
   mxfp8 eat 25–33 food, against 1–18 before. strands-decider does not move
   under any request.
+
+## 21. d1, and Ollama 0.40.5
+
+Measured **2026-10-16** with **Ollama 0.40.5** on the same M5 Pro, the GPU
+idle. `scripts/eval-prompt.ts`, 5 seeds × 200 ticks, the same seeds as §13
+onwards, through `/v1/systemone`.
+
+`d1` is Liquid AI's decision model, built on LFM2.5-VL-3B: 2.7B parameters plus
+a 426M vision projector, reporting `decision` and `vision`. The library offers
+it only as GGUF Q8_0 (3.7 GB; `latest`, `3b` and `3b-q8_0` are one file), with
+no MLX tag yet. Liquid AI reports 48.57 on Decision Index 0.2.1; that figure was
+not checked here.
+
+| | strategy | ticks survived | food | alive | into dead end | passed food | differs from code | median |
+|---|---|---|---|---|---|---|---|---|
+| d1 Q8_0 | greedy | 199, 130, 160, 130, 150 | 7 | 0/5 | 0% | 0% | 94% | 153 ms |
+| | balanced | 176, 130, 130, 130, 150 | 4 | 0/5 | 0% | 0% | 96% | 125 ms |
+| | safe | 176, 130, 130, 130, 150 | 4 | 0/5 | 0% | 0% | 97% | 154 ms |
+| tev1 4b bf16 | greedy | 200 ×5 | 107 | 5/5 | 0% | 0% | 33% | 172 ms |
+
+- **d1 does not steer towards food.** It never crashed and never chose a dead
+  end, but every game ended in starvation, under every strategy. It plays like
+  the small models in §20, not like tev1.
+- **It is no faster than tev1 4b at bf16,** despite being smaller, though it
+  runs on GGUF, which reads requests 1.4–1.5× slower than MLX (§19). An MLX
+  build may be faster; whether it would play differently is open.
+- **0.40.5 changed tev1's games again.** Under greedy on 0.40.4 (§20) it ate
+  106 and survived 4 of 5; on 0.40.5, 107 and 5 of 5.
