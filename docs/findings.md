@@ -47,6 +47,7 @@ move from the same facts.
 | tev1 0.8b | mxfp8, greedy | 33 | 5/5 | — | 43 ms | — | 0.40.4 | §20 |
 | kev 0.8b | mxfp8, greedy | 25 | 3/5 | — | 43 ms | — | 0.40.4 | §20 |
 | d1 3b | Q8_0, greedy | 7 | 0/5 | 94% | 153 ms | balanced 4; safe 4 | 0.40.5 | §21 |
+| d1-omni 600m | bf16, safe | 4 | 1/5 | 87% | 27 ms | Q8_0 2; greedy 1; balanced 1–2 | 0.40.6 | §21 |
 | laya 421m | fp16 | 6 | 1/5 | — | — | the same games under every request | 0.40.4 | §20 |
 | strands-decider 2b | every format | 1 | 0/5 | 99% | — | the same under every request | 0.40.4 | §20 |
 | laya 322m | fp16 | 1 | 0/5 | — | — | — | 0.40.4 | §20 |
@@ -67,7 +68,7 @@ circles (§16, §20), not reading speed.
 
 `scripts/realtime.ts`, 3 seeds, 150-tick cap, at the fastest speed each model
 was found to keep up with, projection on. No model measured since §19 has been
-run in real time yet: nimble-v3, kev and d1 have no row.
+run in real time yet: nimble-v3, kev, d1 and d1-omni have no row.
 
 | model | tag measured | speed | food | alive | on time | Ollama or date | source |
 |---|---|---|---|---|---|---|---|
@@ -1169,7 +1170,7 @@ kev 27b under the other strategies: 101, 5/5, 1,018 ms balanced; 82, 5/5,
   mxfp8 eat 25–33 food, against 1–18 before. strands-decider does not move
   under any request.
 
-## 21. d1, and Ollama 0.40.5
+## 21. d1 and d1-omni, Ollama 0.40.5 and 0.40.6
 
 Measured **2026-10-16** with **Ollama 0.40.5** on the same M5 Pro, the GPU
 idle. `scripts/eval-prompt.ts`, 5 seeds × 200 ticks, the same seeds as §13
@@ -1196,3 +1197,36 @@ not checked here.
   build may be faster; whether it would play differently is open.
 - **0.40.5 changed tev1's games again.** Under greedy on 0.40.4 (§20) it ate
   106 and survived 4 of 5; on 0.40.5, 107 and 5 of 5.
+
+### d1-omni
+
+Measured **2026-10-18** with **Ollama 0.40.6**, the same way. `d1-omni` is
+Liquid AI's small decision model, built on LFM2.5-Encoder-350M: 381M parameters
+plus a 206M vision projector, reporting `decision` and `vision`; the library
+page adds an audio encoder for short voice clips. It comes as `600m-q8_0`
+(0.85 GB, also `latest`) and `600m-bf16` (1.2 GB), both GGUF, with no MLX tag.
+Liquid AI reports 15.95 on Decision Index 0.2.1, against d1's 48.57.
+
+| | strategy | ticks survived | food | alive | passed food | differs from code | median |
+|---|---|---|---|---|---|---|---|
+| d1-omni Q8_0 | greedy | 130, 130, 130, 130, 154 | 1 | 0/5 | 0% | 97% | 27 ms |
+| | balanced | 130, 200, 130, 130, 166 | 2 | 1/5 | 2% | 81% | 28 ms |
+| | safe | 141, 130, 130, 130, 160 | 2 | 0/5 | 0% | 96% | 27 ms |
+| d1-omni bf16 | greedy | 130, 130, 130, 130, 154 | 1 | 0/5 | 0% | 96% | 28 ms |
+| | balanced | 130, 130, 130, 130, 200 | 1 | 1/5 | 2% | 83% | 28 ms |
+| | safe | 200, 130, 130, 130, 160 | 4 | 1/5 | 0% | 87% | 27 ms |
+
+No run chose a dead end with a way out, and none crashed: every lost game
+starved.
+
+- **d1-omni does not play.** It eats 1–4 food in five games under every
+  strategy and format, like the smallest models in §20.
+- **It passes up food it could safely eat**, on 2% of moves under `balanced`.
+  No other run in this file that records the figure shows it above 0%; §20's
+  tables do not record it.
+- **Its ~27 ms medians are not reading speed.** As with the other models that
+  circle (§20), the repeated boards are largely answered from the
+  `/v1/systemone` cache.
+- **0.40.6 left d1 and tev1 unchanged.** Under greedy, d1 played the same games
+  as on 0.40.5 (7 food, 155 ms) and tev1 4b at bf16 the same (107 food, 5/5,
+  172 ms).
