@@ -138,3 +138,25 @@ only runtime:
   module and leaving `baseUrl` out of `tsconfig.json` still work on Node, so the
   code that follows them stays as it is.
 - CI, when it is built, runs the four checks on Node only.
+
+## Amendment, 2026-10-21: dependencies updated
+
+Every dependency moved to its latest release, still pinned exactly: `vite`
+8.3.5, `vue` 3.5.44, `@vitejs/plugin-vue` 6.0.10, `vue-tsc` 3.3.13, `oxlint`
+1.89.0, `prettier` 3.9.10, `playwright` 1.64.1. `tailwindcss`,
+`@tailwindcss/vite` and `@vueuse/core` were already current. `vite` 8.3.5 also
+clears a high-severity advisory in `launch-editor`, which 8.3.0 carried. Two
+were held back:
+
+- **`typescript` 6.0.3, not 7.0.2.** TypeScript 7 no longer exports the
+  JavaScript compiler API, and `vue-tsc` fails at start-up without it
+  (`./lib/tsc` is not exported), although its declared peer range accepts 7.
+  Move when `vue-tsc` supports it.
+- **`@types/node` 24.19.2, not 26.** The types should describe the Node the
+  project runs on. Types for 26 would let code typecheck against APIs that
+  Node 24 lacks.
+
+`oxlint` 1.89 prints nothing when there is nothing to report, where 1.42
+printed a summary line; an empty `npm run lint` with exit status 0 is a pass.
+Playwright 1.64 needs its own browser build: run `npx playwright install
+chromium` once before `npm run shoot`.

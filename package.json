@@ -20,19 +20,19 @@
   },
   "dependencies": {
     "@vueuse/core": "15.0.0",
-    "vue": "3.5.43"
+    "vue": "3.5.44"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
-    "@types/node": "24.10.1",
-    "@vitejs/plugin-vue": "6.0.9",
-    "oxlint": "1.42.0",
-    "playwright": "1.63.0",
-    "prettier": "3.6.2",
+    "@types/node": "24.19.2",
+    "@vitejs/plugin-vue": "6.0.10",
+    "oxlint": "1.89.0",
+    "playwright": "1.64.1",
+    "prettier": "3.9.10",
     "tailwindcss": "4.3.3",
-    "typescript": "5.9.3",
-    "vite": "8.3.0",
-    "vue-tsc": "3.2.2"
+    "typescript": "6.0.3",
+    "vite": "8.3.5",
+    "vue-tsc": "3.3.13"
   },
   "description": "Local LLMs play Snake against a real-time deadline. Code works out exact facts about every safe move and the model picks one, so judgement and latency are measured separately.",
   "license": "MIT"
