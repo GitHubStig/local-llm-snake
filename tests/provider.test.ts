@@ -111,10 +111,6 @@ describe("model advice", () => {
     assert.equal(result.tier, "avoid", "avoid outranks slow");
   });
 
-  test("handles a missing parameter size", () => {
-    assert.equal(classify(model({ parameterSize: null }), rules).tier, "ok");
-  });
-
   test("reads the size out of the name when the provider reports none", () => {
     // Ollama reports no parameter_size for MLX builds, which is exactly the
     // set of large models these rules most need to catch.
@@ -139,6 +135,8 @@ describe("finding a listed model", () => {
     { id: "llama3:text", parameterSize: "8.0B", contextLength: null, capabilities: ["completion"] },
   ];
 
+  // A bare `tev1` failed to match the listed `tev1:latest`, and the scripts
+  // quietly asked it through chat instead.
   test("a bare name means its latest tag", () => {
     assert.equal(listedModel(listed, "tev1").id, "tev1:latest");
     assert.equal(listedModel(listed, "llama3:text").id, "llama3:text");

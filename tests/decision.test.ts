@@ -10,7 +10,7 @@ import {
   buildDecisionRequest,
   type DecisionPromptFile,
 } from "../src/ai/decision.ts";
-import { fullModelName, parseDecision } from "../src/ai/ollama.ts";
+import { parseDecision } from "../src/ai/ollama.ts";
 import type { DecisionRequest, Provider } from "../src/ai/types.ts";
 import { describeFacts } from "../src/ai/prompt.ts";
 import shipped from "../src/prompts/jev-decision.json" with { type: "json" };
@@ -233,15 +233,5 @@ describe("reading a /v1/systemone response", () => {
 
   test("fails loudly when there is no choice", () => {
     assert.throws(() => parseDecision('{"answers":{}}', 40), /no choice/);
-  });
-});
-
-describe("model names", () => {
-  // A bare `tev1` failed to match the listed `tev1:latest`, and the scripts
-  // quietly asked it through chat instead.
-  test("a bare name means its latest tag", () => {
-    assert.equal(fullModelName("tev1"), "tev1:latest");
-    assert.equal(fullModelName("tev1:latest"), "tev1:latest");
-    assert.equal(fullModelName("gemma4:31b-mlx"), "gemma4:31b-mlx");
   });
 });

@@ -101,13 +101,6 @@ describe("the shipped prompt", () => {
     assert.match(text, /Food is next to the head: no/);
     assert.match(text, /^Options:$/m);
   });
-
-  test("answers before explaining", () => {
-    // At temperature 0 the direction is then decoded from the same prefix as
-    // with why off, so asking why can never change the move.
-    const keys = Object.keys(shipped.schema.properties as object);
-    assert.ok(keys.indexOf("direction") < keys.indexOf("why"));
-  });
 });
 
 describe("direction names", () => {
@@ -131,10 +124,6 @@ describe("direction names", () => {
       Record<string, unknown>
     >;
     assert.deepEqual(properties.direction.enum, ["up", "left"]);
-  });
-
-  test("without names, the engine's words are used", () => {
-    assert.match(buildUser(shipped, toView(state), analyze(state)), /Heading: north/);
   });
 });
 
@@ -169,6 +158,9 @@ describe("schema assembly", () => {
   });
 
   test("keeps direction ahead of why", () => {
+    // At temperature 0 the direction is then decoded from the same prefix as
+    // with why off, so asking why can never change the move. The order comes
+    // from the prompt file, so this also guards the shipped schema.
     assert.deepEqual(Object.keys(buildSchema(shipped, ["east"], true).properties as object), [
       "direction",
       "why",

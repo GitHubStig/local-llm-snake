@@ -55,6 +55,12 @@ describe("move facts", () => {
     assert.equal(north.freeTotal, 144 - 4);
   });
 
+  test("keep the tail in the body while growth is still owed", () => {
+    const g = game({ snake: pts([6, 6], [6, 7], [6, 8]), heading: "north" });
+    assert.equal(analyzeMove(g, "west").freeTotal, 144 - 3);
+    assert.equal(analyzeMove({ ...g, pendingGrowth: 1 }, "west").freeTotal, 144 - 4);
+  });
+
   test("flag a dead end that one-step safety cannot see", () => {
     // 4 x 3. West walks into the (0,0) corner, sealed by the body, with the
     // tail far away on the other side: safe for one step, lost after it.

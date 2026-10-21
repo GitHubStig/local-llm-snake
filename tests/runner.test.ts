@@ -307,8 +307,14 @@ describe("runner: projection", () => {
     assert.equal(r.horizon, 0);
   });
 
-  test("never projects a keypress, which answers the board on screen", async () => {
-    const { r } = runner(new HumanController());
+  test("never projects a keypress, which answers the board on screen", () => {
+    // Latencies carried over from a model's game would project two ticks ahead.
+    const r = new Runner(createGame(1), {
+      seed: 1,
+      controller: new HumanController(),
+      clock: new FakeClock(),
+      latencies: [1100],
+    });
     assert.equal(r.horizon, 0);
   });
 
@@ -468,7 +474,20 @@ describe("human controller", () => {
     assert.equal(decision.direction, "east");
   });
 
-  test("queues only one press, so the second turn is not lost", async () => {
+  test("a quick second turn waits for the next request, so it is not lost", async () => {
+    // Up-then-left (ADR-0006): the first press answers the open request and
+    // the second is held for the next one.
+    const human = new HumanController();
+    const first = human.decide({} as GameView, new AbortController().signal);
+    human.press("east");
+    human.press("south");
+    assert.equal((await first).direction, "east");
+
+    const second = await human.decide({} as GameView, new AbortController().signal);
+    assert.equal(second.direction, "south");
+  });
+
+  test("queues one press deep, rather than overwriting", async () => {
     const human = new HumanController();
     human.press("east");
     human.press("south");
@@ -476,9 +495,9 @@ describe("human controller", () => {
     const first = await human.decide({} as GameView, new AbortController().signal);
     assert.equal(first.direction, "east", "the first press is honoured first");
 
-    const second = human.decide({} as GameView, new AbortController().signal);
-    human.press("south");
-    assert.equal((await second).direction, "south");
+    const next = human.decide({} as GameView, new AbortController().signal);
+    human.press("west");
+    assert.equal((await next).direction, "west", "south was dropped, not delivered late");
   });
 
   test("a press after a long straight run is honoured, not discarded as stale", async () => {
