@@ -144,7 +144,8 @@ here.** Distinct from `why` below.
 ### `why`
 
 A short justification string in *our* output schema, written as part of the
-structured answer. Toggleable, default on, capped by `num_predict`. Named `why`
+structured answer. Toggleable, default on, capped by the controller's
+`maxTokens` (sent to Ollama as `num_predict`). Named `why`
 rather than `reasoning` specifically to avoid confusion with thinking.
 
 ### Hunger

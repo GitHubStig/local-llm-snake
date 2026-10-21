@@ -168,3 +168,13 @@ kept after that day's measurements, nimble-v3 and kev 9b eat far more under
 `balanced` stays selectable, and is the goal every result before §20's
 strategy table was measured with; results from the two defaults are not
 directly comparable.
+
+## Amendment, 2026-10-21: the token cap is set in code
+
+ADR-0008 put `temperature` and `num_predict` in the prompt file's `options`,
+and said `why` was capped there. No code ever read that block: temperature is
+fixed at 0 by each provider, and the cap is the `maxTokens` the caller hands
+the controller — 48 in the app, 16 in `realtime.ts`, and 16 or 64 in
+`eval-prompt.ts` depending on `why`. The file's 64 had drifted from the app's
+48 without changing anything. The block is removed from `jev-parity.json` and
+`PromptFile`, so the file no longer claims to set what it does not.

@@ -13,9 +13,5 @@
     },
     "required": ["direction"],
     "additionalProperties": false
-  },
-  "options": {
-    "temperature": 0,
-    "num_predict": 64
   }
 }

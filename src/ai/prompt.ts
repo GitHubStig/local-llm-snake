@@ -13,7 +13,6 @@ export type PromptFile = {
   /** A template. `{{name}}` is replaced from `promptValues`. */
   user: string;
   schema: Record<string, unknown>;
-  options?: Record<string, unknown>;
   /**
    * The words the model sees for each direction. The engine keeps its own;
    * the file owns the vocabulary, so matching another system's labels is a
