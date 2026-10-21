@@ -39,8 +39,16 @@ export function legalMoves(state: Board): Direction[] {
 }
 
 /**
+ * Whether the tail stays put on this move: growth is still owed, or this move
+ * eats food that grows the snake.
+ */
+export function grows(state: Board, eating: boolean): boolean {
+  return (state.pendingGrowth ?? 0) > 0 || (eating && state.rules.growthPerFood > 0);
+}
+
+/**
  * Cells a move cannot enter. The tail is excluded because it vacates on the
- * same tick — unless the snake is about to grow into it.
+ * same tick — unless the snake is growing.
  */
 function blocked(state: Board, willGrow: boolean): readonly Point[] {
   return willGrow ? state.snake : state.snake.slice(0, -1);
@@ -50,8 +58,8 @@ function blocked(state: Board, willGrow: boolean): readonly Point[] {
 export function isImmediatelySafe(state: Board, direction: Direction): boolean {
   const target = translate(state.snake[0], direction);
   if (!inBounds(target, state.rules)) return false;
-  const willGrow = state.food.some((f) => samePoint(f, target));
-  return !blocked(state, willGrow).some((s) => samePoint(s, target));
+  const eating = state.food.some((f) => samePoint(f, target));
+  return !blocked(state, grows(state, eating)).some((s) => samePoint(s, target));
 }
 
 function placeFood(state: GameState): GameState {
@@ -75,6 +83,20 @@ function placeFood(state: GameState): GameState {
 }
 
 /**
+ * Place food until the rules' count is met or no free cell is left. Without
+ * the second condition, a board too full for `foodCount` looped forever.
+ */
+function topUpFood(state: GameState): GameState {
+  let next = state;
+  while (next.food.length < next.rules.foodCount) {
+    const placed = placeFood(next);
+    if (placed === next) break;
+    next = placed;
+  }
+  return next;
+}
+
+/**
  * A fresh game. The snake always starts at the centre heading north with its
  * body trailing south — deliberately not seeded, so an AI has predictable
  * runway before the first decision matters (ADR-0002).
@@ -84,7 +106,7 @@ export function createGame(seed: number, rules: Ruleset = DEFAULT_RULES): GameSt
   const row = Math.floor(rules.height / 2);
   const snake = Array.from({ length: rules.startingLength }, (_, i) => ({ col, row: row + i }));
 
-  let state: GameState = {
+  return topUpFood({
     rules,
     snake,
     food: [],
@@ -92,11 +114,10 @@ export function createGame(seed: number, rules: Ruleset = DEFAULT_RULES): GameSt
     tick: 0,
     ticksSinceFood: 0,
     foodEaten: 0,
+    pendingGrowth: 0,
     outcome: null,
     rng: deriveStreams(seed),
-  };
-  while (state.food.length < rules.foodCount) state = placeFood(state);
-  return state;
+  });
 }
 
 /** Advance one tick. Pure: returns a new state, never mutates. */
@@ -108,17 +129,19 @@ export function step(state: GameState, direction: Direction): GameState {
   const tick = state.tick + 1;
 
   const eating = state.food.some((f) => samePoint(f, head));
+  const growing = grows(state, eating);
   const hitWall = !inBounds(head, state.rules);
-  const hitSelf = blocked(state, eating).some((s) => samePoint(s, head));
+  const hitSelf = blocked(state, growing).some((s) => samePoint(s, head));
 
   if (hitWall || hitSelf) {
     return { ...state, heading: move, tick, outcome: "crashed" };
   }
 
-  const grow = eating ? state.rules.growthPerFood : 0;
-  const snake = [head, ...state.snake.slice(0, state.snake.length - 1 + grow)];
+  // One segment per tick: the rest of what is owed is paid on later ticks.
+  const owed = state.pendingGrowth + (eating ? state.rules.growthPerFood : 0);
+  const snake = growing ? [head, ...state.snake] : [head, ...state.snake.slice(0, -1)];
 
-  let next: GameState = {
+  const next: GameState = {
     ...state,
     snake,
     food: state.food.filter((f) => !samePoint(f, head)),
@@ -126,6 +149,7 @@ export function step(state: GameState, direction: Direction): GameState {
     tick,
     ticksSinceFood: eating ? 0 : state.ticksSinceFood + 1,
     foodEaten: state.foodEaten + (eating ? 1 : 0),
+    pendingGrowth: growing ? owed - 1 : owed,
   };
 
   if (snake.length >= state.rules.width * state.rules.height) {
@@ -134,8 +158,7 @@ export function step(state: GameState, direction: Direction): GameState {
   if (next.ticksSinceFood >= hungerLimit(state.rules, snake.length)) {
     return { ...next, outcome: "starved" };
   }
-  while (next.food.length < state.rules.foodCount) next = placeFood(next);
-  return next;
+  return topUpFood(next);
 }
 
 /** The frozen snapshot a controller receives. Carries facts, not strategy. */
@@ -147,6 +170,7 @@ export function toView(state: GameState): GameView {
     heading: state.heading,
     tick: state.tick,
     ticksSinceFood: state.ticksSinceFood,
+    pendingGrowth: state.pendingGrowth,
     legalMoves: legalMoves(state),
   });
 }

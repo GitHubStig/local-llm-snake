@@ -1,4 +1,4 @@
-import { isImmediatelySafe, legalMoves, translate } from "./engine.ts";
+import { grows, isImmediatelySafe, legalMoves, translate } from "./engine.ts";
 import { DIRECTIONS, OPPOSITE, type Board, type Direction, type Point } from "./types.ts";
 
 /**
@@ -70,8 +70,8 @@ export function analyzeMove(state: Board, direction: Direction): MoveFacts {
   const target = translate(state.snake[0], direction);
   const eats = state.food.some((f) => f.col === target.col && f.row === target.row);
 
-  // The body as it will be after the move: the tail vacates unless eating.
-  const after = [target, ...(eats ? state.snake : state.snake.slice(0, -1))];
+  // The body as it will be after the move: the tail vacates unless growing.
+  const after = [target, ...(grows(state, eats) ? state.snake : state.snake.slice(0, -1))];
   const blocked = new Set(after.map((p) => key(p, width)));
   const region = floodFill(target, blocked, width, height);
 

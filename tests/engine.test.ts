@@ -27,6 +27,7 @@ function bare(over: Partial<GameState> = {}): GameState {
     tick: 0,
     ticksSinceFood: 0,
     foodEaten: 0,
+    pendingGrowth: 0,
     outcome: null,
     rng: deriveStreams(1),
     ...over,
@@ -129,6 +130,56 @@ describe("step", () => {
     assert.equal(next.snake.length, 4);
     assert.equal(next.foodEaten, 1);
     assert.equal(next.ticksSinceFood, 0);
+  });
+
+  test("growth above one segment is paid out one segment per tick", () => {
+    const g = bare({ rules: rules({ growthPerFood: 3 }), food: [{ col: 6, row: 5 }] });
+    const lengths = [];
+    let s = step(g, "north");
+    for (let i = 0; i < 4; i++) {
+      lengths.push(s.snake.length);
+      s = step({ ...s, food: [] }, "north");
+    }
+    assert.deepEqual(lengths, [4, 5, 6, 6]);
+    assert.equal(s.pendingGrowth, 0);
+  });
+
+  test("while growth is owed the tail stays put, so following it is fatal", () => {
+    const chasing = bare({
+      snake: [
+        { col: 5, row: 5 },
+        { col: 6, row: 5 },
+        { col: 6, row: 6 },
+        { col: 5, row: 6 },
+      ],
+      heading: "west",
+      pendingGrowth: 1,
+    });
+    assert.equal(isImmediatelySafe(chasing, "south"), false);
+    assert.equal(step(chasing, "south").outcome, "crashed");
+  });
+
+  test("food that does not grow the snake leaves its tail free to move", () => {
+    const g = bare({ rules: rules({ growthPerFood: 0 }), food: [{ col: 6, row: 5 }] });
+    assert.equal(step(g, "north").snake.length, 3);
+  });
+
+  test("a board with no room for the next food carries on without it", () => {
+    // 2 x 2 with two food: eating one leaves no free cell for its replacement.
+    const full = bare({
+      rules: rules({ width: 2, height: 2, foodCount: 2 }),
+      snake: [
+        { col: 0, row: 0 },
+        { col: 0, row: 1 },
+      ],
+      food: [
+        { col: 1, row: 0 },
+        { col: 1, row: 1 },
+      ],
+    });
+    const next = step(full, "east");
+    assert.equal(next.snake.length, 3);
+    assert.deepEqual(next.food, [{ col: 1, row: 1 }]);
   });
 
   test("replaces eaten food so the count is maintained", () => {

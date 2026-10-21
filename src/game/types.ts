@@ -59,6 +59,11 @@ export type GameState = {
   tick: number;
   ticksSinceFood: number;
   foodEaten: number;
+  /**
+   * Segments still owed from food already eaten. The snake grows one per tick,
+   * so `growthPerFood` above 1 is paid out over the following ticks.
+   */
+  pendingGrowth: number;
   outcome: Outcome | null;
   /** PRNG cursors live in state, never module-level (ADR-0002). */
   rng: { food: number; tiebreak: number };
@@ -75,6 +80,8 @@ export type Board = {
   readonly snake: readonly Point[];
   readonly food: readonly Point[];
   readonly heading: Direction;
+  /** Segments still owed; 0 if left out. */
+  readonly pendingGrowth?: number;
 };
 
 /** The read-only view handed to a controller each turn. */
@@ -85,5 +92,6 @@ export type GameView = Readonly<{
   heading: Direction;
   tick: number;
   ticksSinceFood: number;
+  pendingGrowth: number;
   legalMoves: readonly Direction[];
 }>;

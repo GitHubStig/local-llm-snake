@@ -82,6 +82,22 @@ function — which would have broken the run record in ADR-0009 and any persiste
 settings. It is now two numbers plus a `hungerLimit(rules, length)` helper, and
 `Ruleset` is plain data.
 
+## Amendment, 2026-10-21: growth and food at the edges
+
+Two settings did not do what they said once moved off their defaults, found in
+an audit:
+
+- **`growthPerFood` above 1 grew the snake by one.** The snake now grows one
+  segment per tick until what it is owed is paid, tracked as `pendingGrowth` in
+  the state and the view. While growth is owed the tail stays put, so the
+  move analysis treats it as blocked. With `growthPerFood` 0, eating no longer
+  holds the tail in place.
+- **`foodCount` above 1 could hang the game.** With fewer free cells than food
+  still to place, food placement looped forever. It now stops when the board
+  has no room, and the game carries on with less food than the count.
+
+Neither changes play at the defaults, so no measurement is affected.
+
 ## Consequences
 
 - `legalMoves` is a rules fact, available to the harness (ADR-0006) regardless
