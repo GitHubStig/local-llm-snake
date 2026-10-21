@@ -164,7 +164,10 @@ export function createOllamaProvider(baseUrl: string, label = "Ollama"): Provide
           },
         }),
       });
-      if (!res.ok) throw new Error(`Ollama /api/chat returned ${res.status}`);
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(`Ollama /api/chat returned ${res.status}: ${detail.slice(0, 200)}`);
+      }
 
       const body = (await res.json()) as ChatResponse;
       const picked = pickText(body.message?.content, body.message?.thinking);

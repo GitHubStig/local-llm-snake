@@ -56,6 +56,13 @@ const LINES: Record<string, RegExp> = {
   food: /^Food: \{\{food\}\}\n/m,
 };
 const drop = (process.env.DROP ?? "").split(",").filter(Boolean);
+// A misspelt line would otherwise be dropped from nothing, and the run would
+// measure the full prompt under a header claiming otherwise.
+for (const line of drop) {
+  if (!(line in LINES)) {
+    throw new Error(`unknown DROP line "${line}" (use ${Object.keys(LINES).join(", ")})`);
+  }
+}
 
 const base = JSON.parse(readFileSync("src/prompts/jev-parity.json", "utf8")) as PromptFile;
 const jevLabels = process.env.LABELS === "jev";
