@@ -119,7 +119,12 @@ export const useGame = createGlobalState(() => {
     });
   }
 
-  let runner = build();
+  /**
+   * A ref, not a plain variable: New game replaces the runner, and anything
+   * computed from it must see the replacement. As a plain `let`, the record
+   * stayed the first game's for the whole session.
+   */
+  const runner = shallowRef(build());
 
   /**
    * A new game keeps the latencies measured for the same controller, so its
@@ -137,7 +142,14 @@ export const useGame = createGlobalState(() => {
         state.value = next;
         lastMove.value = move;
         if (move.decidedBy === "controller") lastDecision.value = move;
-        if (move.latencyMs !== null && selected.value && driver.value === "model") {
+        // Only the model's own answers: a forced move is code's, and instant,
+        // so counting it would make the model look faster than it is.
+        if (
+          move.decidedBy === "controller" &&
+          move.latencyMs !== null &&
+          selected.value &&
+          driver.value === "model"
+        ) {
           providers.recordLatency(
             selected.value.providerId,
             selected.value.modelId,
@@ -156,11 +168,11 @@ export const useGame = createGlobalState(() => {
 
   function newGame(nextSeed = randomSeed()) {
     cancelStart();
-    const measured = runner.latencies;
-    runner.stop();
+    const measured = runner.value.latencies;
+    runner.value.stop();
     seed.value = nextSeed;
-    runner = build(measured);
-    state.value = runner.state;
+    runner.value = build(measured);
+    state.value = runner.value.state;
     lastMove.value = null;
     lastDecision.value = null;
     running.value = false;
@@ -186,13 +198,13 @@ export const useGame = createGlobalState(() => {
         return;
       }
     }
-    runner.start();
+    runner.value.start();
     running.value = true;
   }
 
   function pause() {
     cancelStart();
-    runner.pause();
+    runner.value.pause();
     running.value = false;
   }
 
@@ -205,22 +217,22 @@ export const useGame = createGlobalState(() => {
   /** One tick, only meaningful while paused. */
   function stepOnce() {
     pause();
-    runner.advance();
+    runner.value.advance();
   }
 
   function setSpeed(next: Speed) {
     speed.value = next;
-    runner.setSpeed(next);
+    runner.value.setSpeed(next);
   }
 
   function setProjection(on: boolean) {
     project.value = on;
-    runner.setProjection(on);
+    runner.value.setProjection(on);
   }
 
   /** Swap who is driving without disturbing the game in progress. */
   function applyController() {
-    runner.setController(currentController());
+    runner.value.setController(currentController());
   }
 
   function setDriver(next: "human" | "model") {
@@ -251,11 +263,14 @@ export const useGame = createGlobalState(() => {
     human.press(direction);
   }
 
-  const record = computed(() => runner.record);
-  /** Recomputed per tick, which is when failure counts can change. */
+  const record = computed(() => runner.value.record);
+  /**
+   * Recomputed per tick, which is when failure counts can change. A copy,
+   * because the runner counts in place and Vue only passes on a new value.
+   */
   const failures = computed(() => {
     void state.value;
-    return runner.record.failures;
+    return { ...record.value.failures };
   });
   const stats = computed(() => {
     const s = state.value;
